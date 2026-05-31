@@ -10,12 +10,18 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as TallerRouteImport } from './routes/taller'
+import { Route as CatalogoRouteImport } from './routes/catalogo'
 import { Route as AlmacenRouteImport } from './routes/almacen'
 import { Route as IndexRouteImport } from './routes/index'
 
 const TallerRoute = TallerRouteImport.update({
   id: '/taller',
   path: '/taller',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CatalogoRoute = CatalogoRouteImport.update({
+  id: '/catalogo',
+  path: '/catalogo',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AlmacenRoute = AlmacenRouteImport.update({
@@ -32,30 +38,34 @@ const IndexRoute = IndexRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/almacen': typeof AlmacenRoute
+  '/catalogo': typeof CatalogoRoute
   '/taller': typeof TallerRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/almacen': typeof AlmacenRoute
+  '/catalogo': typeof CatalogoRoute
   '/taller': typeof TallerRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/almacen': typeof AlmacenRoute
+  '/catalogo': typeof CatalogoRoute
   '/taller': typeof TallerRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/almacen' | '/taller'
+  fullPaths: '/' | '/almacen' | '/catalogo' | '/taller'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/almacen' | '/taller'
-  id: '__root__' | '/' | '/almacen' | '/taller'
+  to: '/' | '/almacen' | '/catalogo' | '/taller'
+  id: '__root__' | '/' | '/almacen' | '/catalogo' | '/taller'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AlmacenRoute: typeof AlmacenRoute
+  CatalogoRoute: typeof CatalogoRoute
   TallerRoute: typeof TallerRoute
 }
 
@@ -66,6 +76,13 @@ declare module '@tanstack/react-router' {
       path: '/taller'
       fullPath: '/taller'
       preLoaderRoute: typeof TallerRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/catalogo': {
+      id: '/catalogo'
+      path: '/catalogo'
+      fullPath: '/catalogo'
+      preLoaderRoute: typeof CatalogoRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/almacen': {
@@ -88,6 +105,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AlmacenRoute: AlmacenRoute,
+  CatalogoRoute: CatalogoRoute,
   TallerRoute: TallerRoute,
 }
 export const routeTree = rootRouteImport
