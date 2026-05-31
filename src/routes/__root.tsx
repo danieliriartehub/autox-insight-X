@@ -54,8 +54,16 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "bpA Motors — SCM Intelligence Platform" },
+      { title: "Motors SCM Intelligence Platform" },
       { name: "description", content: "Plataforma de Supply Chain Management con analítica avanzada y predicción de demanda para taller automotriz multimarca." },
+      { property: "og:title", content: "Motors SCM Intelligence Platform" },
+      { name: "twitter:title", content: "Motors SCM Intelligence Platform" },
+      { property: "og:description", content: "Plataforma de Supply Chain Management con analítica avanzada y predicción de demanda para taller automotriz multimarca." },
+      { name: "twitter:description", content: "Plataforma de Supply Chain Management con analítica avanzada y predicción de demanda para taller automotriz multimarca." },
+      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/1fe10060-08f5-4789-8fef-856f1dcab2df/id-preview-26acca27--b5cace11-ce3d-4c0a-b104-fcd873ffc7d0.lovable.app-1780201597115.png" },
+      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/1fe10060-08f5-4789-8fef-856f1dcab2df/id-preview-26acca27--b5cace11-ce3d-4c0a-b104-fcd873ffc7d0.lovable.app-1780201597115.png" },
+      { name: "twitter:card", content: "summary_large_image" },
+      { property: "og:type", content: "website" },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
