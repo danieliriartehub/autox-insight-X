@@ -48,6 +48,11 @@ def run_etl() -> dict[str, pd.DataFrame]:
     ot_prod = ot_prod[ot_prod["N_OT"].notna() & (ot_prod["N_OT"] != "") & (ot_prod["N_OT"] != "0")]
     drop_log(before, len(ot_prod), "N_OT = 0 o vacío en OT_producto")
 
+    # Descartar filas sin CODIGO (sin código de repuesto no sirven para el modelo)
+    before = len(ot_prod)
+    ot_prod = ot_prod[ot_prod["CODIGO"].notna() & (ot_prod["CODIGO"].str.strip() != "")]
+    drop_log(before, len(ot_prod), "CODIGO nulo o vacío en OT_producto")
+
     # 4. Normalizar tipos para join
     ot_cab["OT"] = ot_cab["OT"].str.strip()
 
@@ -84,6 +89,27 @@ def run_etl() -> dict[str, pd.DataFrame]:
     return {"ot_cabecera": ot_cab, "ot_producto": ot_prod, "oc_detalle": oc_det, "ot_full": full}
 
 
+# ── Helpers de tipo ──────────────────────────────────────────────────────────
+
+def _coerce_record(record: dict) -> dict:
+    """Convierte strings a int/float/None para que PostgreSQL acepte los tipos."""
+    out = {}
+    for k, v in record.items():
+        if v is None:
+            out[k] = None
+        elif isinstance(v, str):
+            try:
+                out[k] = int(v)
+            except ValueError:
+                try:
+                    out[k] = float(v)
+                except ValueError:
+                    out[k] = v
+        else:
+            out[k] = v
+    return out
+
+
 # ── Carga a Supabase ──────────────────────────────────────────────────────────
 
 def load_to_supabase(tables: dict[str, pd.DataFrame]) -> None:
@@ -92,22 +118,32 @@ def load_to_supabase(tables: dict[str, pd.DataFrame]) -> None:
     key = os.environ["SUPABASE_SERVICE_KEY"]
     supabase: Client = create_client(url, key)
 
+    # mode: "upsert" usa PK natural | "insert" trunca primero por columna pk_col
     table_map = {
-        "ot_cabecera": "ot_cabecera",
-        "ot_producto": "ot_producto",
-        "oc_detalle": "oc_detalle",
-        "ot_full": "ot_full_joined",
+        "ot_cabecera": ("ot_cabecera",    "upsert", None),
+        "ot_producto": ("ot_producto",    "insert", "id"),
+        "oc_detalle":  ("oc_detalle",     "upsert", None),
+        "ot_full":     ("ot_full_joined", "insert", "id"),
     }
 
-    for key_name, table_name in table_map.items():
+    for key_name, (table_name, mode, pk_col) in table_map.items():
         df = tables[key_name].where(pd.notnull(tables[key_name]), None)
-        records = df.to_dict(orient="records")
-        log.info(f"Cargando {len(records)} registros en Supabase tabla '{table_name}' …")
-        # upsert en lotes de 500 para evitar límites de payload
+        df.columns = [c.lower() for c in df.columns]  # PostgreSQL guarda columnas en minúsculas
+        records = [_coerce_record(r) for r in df.to_dict(orient="records")]
+
+        # Truncar tablas con PK serial antes de reinsertar (idempotencia)
+        if mode == "insert" and pk_col:
+            log.info(f"Truncando '{table_name}' antes de insertar …")
+            supabase.table(table_name).delete().gte(pk_col, 0).execute()
+
+        log.info(f"Cargando {len(records)} registros en Supabase tabla '{table_name}' ({mode}) …")
         batch_size = 500
         for i in range(0, len(records), batch_size):
             batch = records[i : i + batch_size]
-            supabase.table(table_name).upsert(batch).execute()
+            if mode == "upsert":
+                supabase.table(table_name).upsert(batch).execute()
+            else:
+                supabase.table(table_name).insert(batch).execute()
         log.info(f"  ✓ '{table_name}' cargada.")
 
 
