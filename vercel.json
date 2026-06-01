@@ -1,6 +1,7 @@
 {
   "buildCommand": "bun run build",
-  "outputDirectory": "dist",
-  "framework": "vite",
-  "installCommand": "bun install"
+  "installCommand": "bun install",
+  "env": {
+    "NITRO_PRESET": "vercel-edge"
+  }
 }
