@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useMemo } from "react";
 import { Brain, Sparkles, TrendingUp, AlertTriangle, ShoppingCart } from "lucide-react";
 import {
   Area, AreaChart, Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis,
@@ -12,6 +13,8 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { prediccionRepuestos, tendenciaFutura, repuestosMasConsumidos } from "@/lib/mock-data";
+import { usePredictions } from "@/hooks/usePredictions";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export const Route = createFileRoute("/prediccion")({
   head: () => ({
@@ -23,6 +26,17 @@ export const Route = createFileRoute("/prediccion")({
   component: PrediccionPage,
 });
 
+// Maps prediccionRepuestos names → inventory codes sent to the API
+const REPUESTO_CODE: Record<string, string> = {
+  "Filtro de aceite":          "FLT-AC-0021",
+  "Aceite 5W30 4L":            "ACE-5W30-04",
+  "Pastillas freno delantero": "PAS-FR-T-09",
+  "Amortiguador delantero":    "AMR-DEL-22",
+  "Bujía iridio":              "BUJ-IRD-04",
+  "Correa distribución":       "COR-DIS-08",
+  "Batería 12V 70Ah":          "BAT-12V-70",
+};
+
 const riesgoColor: Record<string, string> = {
   Bajo: "bg-success/15 text-success border-success/30",
   Medio: "bg-warning/20 text-warning-foreground border-warning/40",
@@ -30,6 +44,9 @@ const riesgoColor: Record<string, string> = {
 };
 
 function PrediccionPage() {
+  const codigos = useMemo(() => Object.values(REPUESTO_CODE), []);
+  const { data: predictions, loading: predLoading, error: predError } = usePredictions(codigos);
+
   return (
     <>
       <TopBar title="IA Predictiva" subtitle="Modelo de demanda · Recomendación de compra · Riesgo de quiebre" />
@@ -89,19 +106,27 @@ function PrediccionPage() {
               <CardTitle className="text-base flex items-center gap-2"><AlertTriangle className="h-4 w-4 text-destructive" /> Ranking de repuestos críticos</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              {prediccionRepuestos.filter((p) => p.riesgo !== "Bajo").map((p) => (
-                <div key={p.repuesto} className="rounded-lg border p-3">
-                  <div className="flex items-center justify-between">
-                    <div className="text-sm font-medium">{p.repuesto}</div>
-                    <Badge variant="outline" className={riesgoColor[p.riesgo]}>{p.riesgo}</Badge>
+              {prediccionRepuestos.filter((p) => p.riesgo !== "Bajo").map((p) => {
+                const code = REPUESTO_CODE[p.repuesto];
+                const pred = code ? predictions[code] : undefined;
+                const demanda = pred?.cantidad_estimada ?? p.demanda;
+                const confianza = pred ? Math.round(pred.confianza * 100) : p.confianza;
+                return (
+                  <div key={p.repuesto} className="rounded-lg border p-3">
+                    <div className="flex items-center justify-between">
+                      <div className="text-sm font-medium">{p.repuesto}</div>
+                      <Badge variant="outline" className={riesgoColor[p.riesgo]}>{p.riesgo}</Badge>
+                    </div>
+                    <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
+                      <span>Demanda estimada: <b className="text-foreground">
+                        {predLoading && !pred ? <Skeleton className="inline-block h-3 w-8 align-middle" /> : demanda}
+                      </b></span>
+                      <span>{predLoading && !pred ? "—" : `${confianza}%`}</span>
+                    </div>
+                    <Progress value={confianza} className="mt-1.5 h-1.5" />
                   </div>
-                  <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
-                    <span>Demanda estimada: <b className="text-foreground">{p.demanda}</b></span>
-                    <span>{p.confianza}%</span>
-                  </div>
-                  <Progress value={p.confianza} className="mt-1.5 h-1.5" />
-                </div>
-              ))}
+                );
+              })}
             </CardContent>
           </Card>
         </section>
@@ -148,7 +173,13 @@ function PrediccionPage() {
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
               <CardTitle className="text-base flex items-center gap-2"><ShoppingCart className="h-4 w-4 text-primary" /> Recomendación de compra</CardTitle>
-              <CardDescription>Generada por el modelo predictivo</CardDescription>
+              <CardDescription>
+                {predError
+                  ? "Datos de referencia (API no disponible)"
+                  : predLoading
+                  ? "Consultando modelo IA…"
+                  : "Predicciones en tiempo real · Modelo XGBoost"}
+              </CardDescription>
             </div>
             <Badge variant="outline" className="border-primary/30 text-primary">Horizonte 90 días</Badge>
           </CardHeader>
@@ -165,19 +196,31 @@ function PrediccionPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {prediccionRepuestos.map((p) => (
-                    <TableRow key={p.repuesto}>
-                      <TableCell className="font-medium">{p.repuesto}</TableCell>
-                      <TableCell className="text-right">{p.demanda}</TableCell>
-                      <TableCell className="text-right">
-                        <span className={p.confianza >= 85 ? "text-success font-semibold" : "text-warning-foreground font-semibold"}>
-                          {p.confianza}%
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-right font-semibold text-primary">{p.recomendado}</TableCell>
-                      <TableCell><Badge variant="outline" className={riesgoColor[p.riesgo]}>{p.riesgo}</Badge></TableCell>
-                    </TableRow>
-                  ))}
+                  {prediccionRepuestos.map((p) => {
+                    const code = REPUESTO_CODE[p.repuesto];
+                    const pred = code ? predictions[code] : undefined;
+                    const demanda = pred?.cantidad_estimada ?? p.demanda;
+                    const confianza = pred ? Math.round(pred.confianza * 100) : p.confianza;
+                    return (
+                      <TableRow key={p.repuesto}>
+                        <TableCell className="font-medium">{p.repuesto}</TableCell>
+                        <TableCell className="text-right">
+                          {predLoading && !pred ? <Skeleton className="ml-auto h-4 w-12" /> : demanda}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {predLoading && !pred ? (
+                            <Skeleton className="ml-auto h-4 w-10" />
+                          ) : (
+                            <span className={confianza >= 85 ? "text-success font-semibold" : "text-warning-foreground font-semibold"}>
+                              {confianza}%
+                            </span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right font-semibold text-primary">{p.recomendado}</TableCell>
+                        <TableCell><Badge variant="outline" className={riesgoColor[p.riesgo]}>{p.riesgo}</Badge></TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </div>

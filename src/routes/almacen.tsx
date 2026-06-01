@@ -17,6 +17,8 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { inventario, movimientos, type StockEstado } from "@/lib/mock-data";
+import { usePredictions } from "@/hooks/usePredictions";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export const Route = createFileRoute("/almacen")({
   head: () => ({
@@ -46,6 +48,8 @@ function AlmacenPage() {
   );
 
   const alertas = inventario.filter((i) => i.estado === "Bajo" || i.estado === "Crítico" || i.estado === "Exceso");
+  const allCodigos = useMemo(() => inventario.map((i) => i.codigo), []);
+  const { data: predictions, loading: predLoading } = usePredictions(allCodigos);
 
   return (
     <>
@@ -106,6 +110,9 @@ function AlmacenPage() {
                         <TableHead className="text-right">Mín</TableHead>
                         <TableHead className="text-right">Máx</TableHead>
                         <TableHead>Estado</TableHead>
+                        <TableHead className="text-right">
+                          Demanda IA <span className="text-[10px] font-normal opacity-60">(90 d)</span>
+                        </TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -119,6 +126,20 @@ function AlmacenPage() {
                           <TableCell className="text-right text-muted-foreground">{i.min}</TableCell>
                           <TableCell className="text-right text-muted-foreground">{i.max}</TableCell>
                           <TableCell><Badge variant="outline" className={estadoStock[i.estado]}>{i.estado}</Badge></TableCell>
+                          <TableCell className="text-right">
+                            {predLoading ? (
+                              <Skeleton className="ml-auto h-4 w-14" />
+                            ) : predictions[i.codigo] ? (
+                              <span>
+                                <span className="font-semibold">{predictions[i.codigo].cantidad_estimada}</span>
+                                <span className="ml-1.5 text-[10px] text-muted-foreground">
+                                  {Math.round(predictions[i.codigo].confianza * 100)}%
+                                </span>
+                              </span>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">—</span>
+                            )}
+                          </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
