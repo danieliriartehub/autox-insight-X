@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { fetchPrediction, type PredictResponse } from "@/lib/api/predict";
+import { fetchPrediction, type PredictResponse } from "@/services/predict";
 
 export type PredictMap = Record<string, PredictResponse>;
 
