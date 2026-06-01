@@ -1,7 +1,5 @@
 {
-  "buildCommand": "bun run build",
-  "installCommand": "bun install",
-  "env": {
-    "NITRO_PRESET": "vercel-edge"
-  }
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
 }
