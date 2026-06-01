@@ -1,0 +1,6 @@
+api/
+ml/
+etl/
+data/
+.env
+.env.example
