@@ -7,13 +7,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { ordenesTrabajo, detalleOT, type OTEstado } from "@/lib/mock-data";
+import { useOrdenesTrabajo, useDetalleOT, type OTEstado } from "@/hooks/useData";
 
 export const Route = createFileRoute("/taller")({
   head: () => ({
@@ -33,21 +34,22 @@ const estadoColor: Record<OTEstado, string> = {
 };
 
 function TallerPage() {
+  const { data: ordenes, loading } = useOrdenesTrabajo();
   const [q, setQ] = useState("");
   const [estado, setEstado] = useState<string>("todos");
-  const [marca, setMarca] = useState<string>("todas");
-  const [selected, setSelected] = useState(ordenesTrabajo[0]);
+  const [selectedId, setSelectedId] = useState<string>("");
 
-  const marcas = useMemo(() => Array.from(new Set(ordenesTrabajo.map((o) => o.marca))), []);
+  const ordenesTrabajo = ordenes ?? [];
+  const selected = ordenesTrabajo.find((o) => o.id === selectedId) ?? ordenesTrabajo[0];
+  const { data: detalle, loading: detalleLoading } = useDetalleOT(selected?.id ?? "");
 
   const filtered = useMemo(() => {
     return ordenesTrabajo.filter((o) => {
       const matchQ = !q || `${o.id} ${o.cliente} ${o.vehiculo}`.toLowerCase().includes(q.toLowerCase());
       const matchE = estado === "todos" || o.estado === estado;
-      const matchM = marca === "todas" || o.marca === marca;
-      return matchQ && matchE && matchM;
+      return matchQ && matchE;
     });
-  }, [q, estado, marca]);
+  }, [ordenesTrabajo, q, estado]);
 
   return (
     <>
@@ -73,16 +75,7 @@ function TallerPage() {
                   <SelectItem value="Cerrada">Cerrada</SelectItem>
                 </SelectContent>
               </Select>
-              <Select value={marca} onValueChange={setMarca}>
-                <SelectTrigger className="w-44"><SelectValue placeholder="Marca" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="todas">Todas las marcas</SelectItem>
-                  {marcas.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}
-                </SelectContent>
-              </Select>
-              <div className="ml-auto text-xs text-muted-foreground">
-                {filtered.length} órdenes
-              </div>
+              <div className="ml-auto text-xs text-muted-foreground">{filtered.length} órdenes</div>
             </div>
 
             <div className="rounded-lg border">
@@ -91,77 +84,83 @@ function TallerPage() {
                   <TableRow className="bg-muted/40">
                     <TableHead>Número OT</TableHead>
                     <TableHead>Fecha</TableHead>
-                    <TableHead>Vehículo</TableHead>
-                    <TableHead>Cliente</TableHead>
-                    <TableHead>Mecánico</TableHead>
+                    <TableHead>Placa</TableHead>
+                    <TableHead>Requerimiento</TableHead>
+                    <TableHead>Tipo</TableHead>
                     <TableHead>Estado</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filtered.map((o) => (
-                    <TableRow
-                      key={o.id}
-                      onClick={() => setSelected(o)}
-                      className="cursor-pointer hover:bg-muted/40 data-[active=true]:bg-primary/5"
-                      data-active={selected.id === o.id}
-                    >
-                      <TableCell className="font-medium text-primary">{o.id}</TableCell>
-                      <TableCell>{o.fecha}</TableCell>
-                      <TableCell>{o.vehiculo}</TableCell>
-                      <TableCell>{o.cliente}</TableCell>
-                      <TableCell>{o.mecanico}</TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className={estadoColor[o.estado]}>{o.estado}</Badge>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  {loading
+                    ? Array.from({ length: 6 }).map((_, i) => (
+                        <TableRow key={i}>
+                          {Array.from({ length: 6 }).map((__, j) => (
+                            <TableCell key={j}><Skeleton className="h-4 w-full" /></TableCell>
+                          ))}
+                        </TableRow>
+                      ))
+                    : filtered.map((o) => (
+                        <TableRow
+                          key={o.id}
+                          onClick={() => setSelectedId(o.id)}
+                          className="cursor-pointer hover:bg-muted/40 data-[active=true]:bg-primary/5"
+                          data-active={selected?.id === o.id}
+                        >
+                          <TableCell className="font-medium text-primary">{o.id}</TableCell>
+                          <TableCell>{o.fecha}</TableCell>
+                          <TableCell>{o.vehiculo}</TableCell>
+                          <TableCell className="max-w-xs truncate text-xs text-muted-foreground">{o.cliente}</TableCell>
+                          <TableCell>{o.marca}</TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className={estadoColor[o.estado]}>{o.estado}</Badge>
+                          </TableCell>
+                        </TableRow>
+                      ))}
                 </TableBody>
               </Table>
             </div>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Detalle de {selected.id} · {selected.vehiculo}</CardTitle>
-          </CardHeader>
-          <CardContent className="grid grid-cols-1 gap-6 md:grid-cols-3">
-            <div>
-              <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Servicios realizados</h4>
-              <ul className="mt-2 space-y-1.5 text-sm">
-                {detalleOT.servicios.map((s) => (
-                  <li key={s} className="flex items-center gap-2"><span className="h-1.5 w-1.5 rounded-full bg-primary" />{s}</li>
-                ))}
-              </ul>
-            </div>
-            <div>
-              <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Fallas detectadas</h4>
-              <ul className="mt-2 space-y-1.5 text-sm">
-                {detalleOT.fallas.map((f) => (
-                  <li key={f} className="flex items-center gap-2"><span className="h-1.5 w-1.5 rounded-full bg-warning" />{f}</li>
-                ))}
-              </ul>
-            </div>
-            <div>
-              <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Repuestos utilizados</h4>
-              <ul className="mt-2 space-y-1.5 text-sm">
-                {detalleOT.repuestos.map((r) => (
-                  <li key={r.codigo} className="flex justify-between border-b border-dashed py-1">
-                    <span><span className="font-mono text-xs text-muted-foreground">{r.codigo}</span> · {r.desc}</span>
-                    <span className="font-medium">x{r.cant}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-            <div className="md:col-span-3">
-              <div className="mb-2 flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">Estado de ejecución</span>
-                <span className="font-semibold">{detalleOT.ejecucion}%</span>
+        {selected && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Detalle de {selected.id} · Placa {selected.vehiculo}</CardTitle>
+            </CardHeader>
+            <CardContent className="grid grid-cols-1 gap-6 md:grid-cols-2">
+              <div>
+                <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Repuestos utilizados</h4>
+                {detalleLoading ? (
+                  <div className="mt-2 space-y-2">
+                    {[1,2,3].map((i) => <Skeleton key={i} className="h-8 w-full" />)}
+                  </div>
+                ) : (
+                  <ul className="mt-2 space-y-1.5 text-sm">
+                    {(detalle?.repuestos ?? []).length === 0 ? (
+                      <li className="text-muted-foreground text-xs">Sin repuestos registrados</li>
+                    ) : (detalle?.repuestos ?? []).map((r) => (
+                      <li key={r.codigo} className="flex justify-between border-b border-dashed py-1">
+                        <span><span className="font-mono text-xs text-muted-foreground">{r.codigo}</span> · {r.desc}</span>
+                        <span className="font-medium">x{r.cant}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
-              <Progress value={detalleOT.ejecucion} />
-            </div>
-          </CardContent>
-        </Card>
+              <div>
+                <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Requerimiento</h4>
+                <p className="mt-2 text-sm text-muted-foreground">{selected.cliente}</p>
+                <div className="mt-6">
+                  <div className="mb-2 flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">Estado de ejecución</span>
+                    <span className="font-semibold">{selected.estado === "Cerrada" ? "100%" : selected.estado === "En Proceso" ? "60%" : "0%"}</span>
+                  </div>
+                  <Progress value={selected.estado === "Cerrada" ? 100 : selected.estado === "En Proceso" ? 60 : 0} />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </main>
     </>
   );

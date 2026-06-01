@@ -10,9 +10,7 @@ import {
 import { TopBar } from "@/components/TopBar";
 import { KpiCard } from "@/components/KpiCard";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import {
-  KPIS, consumoMensual, distribucionServicios, nivelInventario,
-} from "@/lib/mock-data";
+import { useKpis, useConsumoMensual, useDistribucionServicios, useNivelInventario } from "@/hooks/useData";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -27,17 +25,27 @@ export const Route = createFileRoute("/")({
 const PIE_COLORS = ["#0D47A1", "#1565C0", "#42A5F5", "#90CAF9"];
 
 function Dashboard() {
+  const { data: kpis } = useKpis();
+  const { data: consumoMensual } = useConsumoMensual();
+  const { data: distribucionServicios } = useDistribucionServicios();
+  const { data: nivelInventario } = useNivelInventario();
+
+  const k = kpis ?? { otsAbiertas: 0, otsCerradas: 0, repuestosConsumidos: 0, inventarioDisponible: 0, quiebresStock: 0, prediccionDemanda: 0 };
+  const consumo = consumoMensual ?? [];
+  const distribucion = distribucionServicios ?? [];
+  const nivel = nivelInventario ?? [];
+
   return (
     <>
       <TopBar title="Dashboard Ejecutivo" subtitle="Visión global de la operación y supply chain" />
       <main className="flex-1 space-y-6 p-6">
         <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-          <KpiCard label="OTs Abiertas" value={KPIS.otsAbiertas} delta="+8% vs semana ant." trend="up" icon={ClipboardList} />
-          <KpiCard label="OTs Cerradas" value={KPIS.otsCerradas} delta="+12% MTD" trend="up" icon={CheckCircle2} tone="success" />
-          <KpiCard label="Repuestos consumidos" value={KPIS.repuestosConsumidos.toLocaleString()} delta="Mes en curso" icon={Package} />
-          <KpiCard label="Inventario disponible" value={KPIS.inventarioDisponible.toLocaleString()} delta="Unidades totales" icon={Boxes} />
-          <KpiCard label="Quiebres de stock" value={KPIS.quiebresStock} delta="Requiere atención" trend="down" icon={AlertTriangle} tone="destructive" />
-          <KpiCard label="Predicción demanda" value={KPIS.prediccionDemanda.toLocaleString()} delta="Próximo mes" trend="up" icon={TrendingUp} tone="success" />
+          <KpiCard label="OTs Abiertas" value={k.otsAbiertas} delta="+8% vs semana ant." trend="up" icon={ClipboardList} />
+          <KpiCard label="OTs Cerradas" value={k.otsCerradas} delta="+12% MTD" trend="up" icon={CheckCircle2} tone="success" />
+          <KpiCard label="Repuestos consumidos" value={k.repuestosConsumidos.toLocaleString()} delta="Mes en curso" icon={Package} />
+          <KpiCard label="Inventario disponible" value={k.inventarioDisponible.toLocaleString()} delta="Unidades totales" icon={Boxes} />
+          <KpiCard label="Quiebres de stock" value={k.quiebresStock} delta="Requiere atención" trend="down" icon={AlertTriangle} tone="destructive" />
+          <KpiCard label="Predicción demanda" value={k.prediccionDemanda.toLocaleString()} delta="Próximo mes" trend="up" icon={TrendingUp} tone="success" />
         </section>
 
         <section className="grid grid-cols-1 gap-4 lg:grid-cols-3">
@@ -48,7 +56,7 @@ function Dashboard() {
             </CardHeader>
             <CardContent className="h-72">
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={consumoMensual}>
+                <AreaChart data={consumo}>
                   <defs>
                     <linearGradient id="g1" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="0%" stopColor="#1565C0" stopOpacity={0.5} />
@@ -75,15 +83,8 @@ function Dashboard() {
             <CardContent className="h-72">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
-                  <Pie
-                    data={distribucionServicios}
-                    dataKey="valor"
-                    nameKey="tipo"
-                    innerRadius={55}
-                    outerRadius={90}
-                    paddingAngle={2}
-                  >
-                    {distribucionServicios.map((_, i) => (
+                  <Pie data={distribucion} dataKey="valor" nameKey="tipo" innerRadius={55} outerRadius={90} paddingAngle={2}>
+                    {distribucion.map((_, i) => (
                       <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
                     ))}
                   </Pie>
@@ -98,11 +99,11 @@ function Dashboard() {
         <section className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Tendencia de demanda (12 meses)</CardTitle>
+              <CardTitle className="text-base">Tendencia de demanda (histórico)</CardTitle>
             </CardHeader>
             <CardContent className="h-64">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={consumoMensual}>
+                <LineChart data={consumo}>
                   <CartesianGrid strokeDasharray="3 3" opacity={0.4} />
                   <XAxis dataKey="mes" fontSize={12} stroke="#64748b" />
                   <YAxis fontSize={12} stroke="#64748b" />
@@ -120,7 +121,7 @@ function Dashboard() {
             </CardHeader>
             <CardContent className="h-64">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={nivelInventario}>
+                <BarChart data={nivel}>
                   <CartesianGrid strokeDasharray="3 3" opacity={0.4} />
                   <XAxis dataKey="categoria" fontSize={11} stroke="#64748b" />
                   <YAxis fontSize={12} stroke="#64748b" />
@@ -141,7 +142,7 @@ function Dashboard() {
           </CardHeader>
           <CardContent className="grid grid-cols-2 gap-4 md:grid-cols-4">
             {[
-              { l: "Tasa de cierre OT", v: "87%", c: "text-success" },
+              { l: "Tasa de cierre OT", v: k.otsCerradas ? `${Math.round((k.otsCerradas / (k.otsCerradas + k.otsAbiertas)) * 100)}%` : "—", c: "text-success" },
               { l: "Cobertura de stock", v: "23 días", c: "text-primary" },
               { l: "Precisión predictiva", v: "91.2%", c: "text-success" },
               { l: "SLA proveedores", v: "94%", c: "text-success" },

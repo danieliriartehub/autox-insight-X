@@ -1,12 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { AlertTriangle, ArrowDownToLine, ArrowUpFromLine, Search, ShoppingCart } from "lucide-react";
+import { AlertTriangle, ArrowDownToLine, Search, ShoppingCart } from "lucide-react";
 
 import { TopBar } from "@/components/TopBar";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Tabs, TabsContent, TabsList, TabsTrigger,
 } from "@/components/ui/tabs";
@@ -16,9 +17,8 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { inventario, movimientos, type StockEstado } from "@/lib/mock-data";
+import { useInventario, useMovimientos, type StockEstado } from "@/hooks/useData";
 import { usePredictions } from "@/hooks/usePredictions";
-import { Skeleton } from "@/components/ui/skeleton";
 
 export const Route = createFileRoute("/almacen")({
   head: () => ({
@@ -40,7 +40,14 @@ const estadoStock: Record<StockEstado, string> = {
 function AlmacenPage() {
   const [q, setQ] = useState("");
   const [cat, setCat] = useState("todas");
-  const categorias = useMemo(() => Array.from(new Set(inventario.map((i) => i.categoria))), []);
+
+  const { data: inventarioData, loading: invLoading } = useInventario();
+  const { data: movimientosData, loading: movLoading } = useMovimientos();
+
+  const inventario = inventarioData ?? [];
+  const movimientos = movimientosData ?? [];
+
+  const categorias = useMemo(() => Array.from(new Set(inventario.map((i) => i.categoria))), [inventario]);
 
   const filtered = inventario.filter((i) =>
     (cat === "todas" || i.categoria === cat) &&
@@ -48,7 +55,8 @@ function AlmacenPage() {
   );
 
   const alertas = inventario.filter((i) => i.estado === "Bajo" || i.estado === "Crítico" || i.estado === "Exceso");
-  const allCodigos = useMemo(() => inventario.map((i) => i.codigo), []);
+
+  const allCodigos = useMemo(() => inventario.map((i) => i.codigo), [inventario]);
   const { data: predictions, loading: predLoading } = usePredictions(allCodigos);
 
   return (
@@ -65,7 +73,10 @@ function AlmacenPage() {
             <Card key={m.l}>
               <CardContent className="p-5">
                 <div className="text-xs uppercase tracking-wider text-muted-foreground">{m.l}</div>
-                <div className={`mt-1 text-2xl font-semibold ${m.c}`}>{m.v}</div>
+                {invLoading
+                  ? <Skeleton className="mt-2 h-7 w-20" />
+                  : <div className={`mt-1 text-2xl font-semibold ${m.c}`}>{m.v}</div>
+                }
               </CardContent>
             </Card>
           ))}
@@ -105,7 +116,6 @@ function AlmacenPage() {
                         <TableHead>Código</TableHead>
                         <TableHead>Repuesto</TableHead>
                         <TableHead>Categoría</TableHead>
-                        <TableHead>Marca</TableHead>
                         <TableHead className="text-right">Stock</TableHead>
                         <TableHead className="text-right">Mín</TableHead>
                         <TableHead className="text-right">Máx</TableHead>
@@ -116,32 +126,39 @@ function AlmacenPage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {filtered.map((i) => (
-                        <TableRow key={i.codigo}>
-                          <TableCell className="font-mono text-xs">{i.codigo}</TableCell>
-                          <TableCell className="font-medium">{i.repuesto}</TableCell>
-                          <TableCell>{i.categoria}</TableCell>
-                          <TableCell>{i.marca}</TableCell>
-                          <TableCell className="text-right font-semibold">{i.stock}</TableCell>
-                          <TableCell className="text-right text-muted-foreground">{i.min}</TableCell>
-                          <TableCell className="text-right text-muted-foreground">{i.max}</TableCell>
-                          <TableCell><Badge variant="outline" className={estadoStock[i.estado]}>{i.estado}</Badge></TableCell>
-                          <TableCell className="text-right">
-                            {predLoading ? (
-                              <Skeleton className="ml-auto h-4 w-14" />
-                            ) : predictions[i.codigo] ? (
-                              <span>
-                                <span className="font-semibold">{predictions[i.codigo].cantidad_estimada}</span>
-                                <span className="ml-1.5 text-[10px] text-muted-foreground">
-                                  {Math.round(predictions[i.codigo].confianza * 100)}%
-                                </span>
-                              </span>
-                            ) : (
-                              <span className="text-xs text-muted-foreground">—</span>
-                            )}
-                          </TableCell>
-                        </TableRow>
-                      ))}
+                      {invLoading
+                        ? Array.from({ length: 5 }).map((_, i) => (
+                            <TableRow key={i}>
+                              {Array.from({ length: 8 }).map((__, j) => (
+                                <TableCell key={j}><Skeleton className="h-4 w-full" /></TableCell>
+                              ))}
+                            </TableRow>
+                          ))
+                        : filtered.map((i) => (
+                            <TableRow key={i.codigo}>
+                              <TableCell className="font-mono text-xs">{i.codigo}</TableCell>
+                              <TableCell className="font-medium">{i.repuesto}</TableCell>
+                              <TableCell>{i.categoria}</TableCell>
+                              <TableCell className="text-right font-semibold">{i.stock}</TableCell>
+                              <TableCell className="text-right text-muted-foreground">{i.min}</TableCell>
+                              <TableCell className="text-right text-muted-foreground">{i.max}</TableCell>
+                              <TableCell><Badge variant="outline" className={estadoStock[i.estado]}>{i.estado}</Badge></TableCell>
+                              <TableCell className="text-right">
+                                {predLoading ? (
+                                  <Skeleton className="ml-auto h-4 w-14" />
+                                ) : predictions[i.codigo] ? (
+                                  <span>
+                                    <span className="font-semibold">{predictions[i.codigo].cantidad_estimada}</span>
+                                    <span className="ml-1.5 text-[10px] text-muted-foreground">
+                                      {Math.round(predictions[i.codigo].confianza * 100)}%
+                                    </span>
+                                  </span>
+                                ) : (
+                                  <span className="text-xs text-muted-foreground">—</span>
+                                )}
+                              </TableCell>
+                            </TableRow>
+                          ))}
                     </TableBody>
                   </Table>
                 </div>
@@ -153,7 +170,7 @@ function AlmacenPage() {
             <Card>
               <CardHeader>
                 <CardTitle className="text-base">Movimientos recientes</CardTitle>
-                <CardDescription>Entradas (compras) y salidas (consumo a OT)</CardDescription>
+                <CardDescription>Entradas desde órdenes de compra</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="rounded-lg border">
@@ -162,27 +179,33 @@ function AlmacenPage() {
                       <TableRow className="bg-muted/40">
                         <TableHead>Fecha</TableHead>
                         <TableHead>Tipo</TableHead>
-                        <TableHead>Código</TableHead>
+                        <TableHead>Código repuesto</TableHead>
                         <TableHead className="text-right">Cantidad</TableHead>
                         <TableHead>Referencia</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {movimientos.map((m, i) => (
-                        <TableRow key={i}>
-                          <TableCell>{m.fecha}</TableCell>
-                          <TableCell>
-                            {m.tipo === "Entrada" ? (
-                              <span className="inline-flex items-center gap-1 text-success"><ArrowDownToLine className="h-3.5 w-3.5" /> Entrada</span>
-                            ) : (
-                              <span className="inline-flex items-center gap-1 text-primary"><ArrowUpFromLine className="h-3.5 w-3.5" /> Salida</span>
-                            )}
-                          </TableCell>
-                          <TableCell className="font-mono text-xs">{m.codigo}</TableCell>
-                          <TableCell className="text-right font-semibold">{m.cant}</TableCell>
-                          <TableCell className="text-muted-foreground">{m.ref}</TableCell>
-                        </TableRow>
-                      ))}
+                      {movLoading
+                        ? Array.from({ length: 5 }).map((_, i) => (
+                            <TableRow key={i}>
+                              {Array.from({ length: 5 }).map((__, j) => (
+                                <TableCell key={j}><Skeleton className="h-4 w-full" /></TableCell>
+                              ))}
+                            </TableRow>
+                          ))
+                        : movimientos.map((m, i) => (
+                            <TableRow key={i}>
+                              <TableCell>{m.fecha}</TableCell>
+                              <TableCell>
+                                <span className="inline-flex items-center gap-1 text-success">
+                                  <ArrowDownToLine className="h-3.5 w-3.5" /> Entrada
+                                </span>
+                              </TableCell>
+                              <TableCell className="font-mono text-xs">{m.codigo}</TableCell>
+                              <TableCell className="text-right font-semibold">{m.cant}</TableCell>
+                              <TableCell className="text-muted-foreground">{m.ref}</TableCell>
+                            </TableRow>
+                          ))}
                     </TableBody>
                   </Table>
                 </div>
@@ -199,7 +222,7 @@ function AlmacenPage() {
                       <div>
                         <div className="font-mono text-[11px] text-muted-foreground">{a.codigo}</div>
                         <div className="font-semibold">{a.repuesto}</div>
-                        <div className="text-xs text-muted-foreground">{a.categoria} · {a.marca}</div>
+                        <div className="text-xs text-muted-foreground">{a.categoria}</div>
                       </div>
                       <AlertTriangle className={a.estado === "Crítico" ? "h-5 w-5 text-destructive" : a.estado === "Bajo" ? "h-5 w-5 text-warning" : "h-5 w-5 text-info"} />
                     </div>
