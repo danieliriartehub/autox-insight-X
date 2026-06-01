@@ -3,6 +3,8 @@ import {
   Outlet,
   createRootRouteWithContext,
   useRouter,
+  useRouterState,
+  useNavigate,
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
@@ -13,6 +15,8 @@ import { reportLovableError } from "../lib/lovable-error-reporting";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { Toaster } from "@/components/ui/sonner";
+import { AuthProvider, useAuth, canAccess } from "@/lib/auth";
+import { ShieldAlert } from "lucide-react";
 
 function NotFoundComponent() {
   return (
@@ -97,15 +101,61 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <SidebarProvider>
-        <div className="flex min-h-screen w-full bg-background">
-          <AppSidebar />
-          <SidebarInset className="flex min-w-0 flex-1 flex-col">
-            <Outlet />
-          </SidebarInset>
-        </div>
+      <AuthProvider>
+        <AppShell />
         <Toaster />
-      </SidebarProvider>
+      </AuthProvider>
     </QueryClientProvider>
+  );
+}
+
+function AppShell() {
+  const { user, ready } = useAuth();
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const navigate = useNavigate();
+  const isLogin = pathname === "/login";
+
+  useEffect(() => {
+    if (!ready) return;
+    if (!user && !isLogin) navigate({ to: "/login" });
+  }, [ready, user, isLogin, navigate]);
+
+  // Public/auth route — render Outlet only (no sidebar chrome)
+  if (isLogin || !user) {
+    return <Outlet />;
+  }
+
+  const allowed = canAccess(user.rol, pathname);
+
+  return (
+    <SidebarProvider>
+      <div className="flex min-h-screen w-full bg-background">
+        <AppSidebar />
+        <SidebarInset className="flex min-w-0 flex-1 flex-col">
+          {allowed ? <Outlet /> : <Forbidden />}
+        </SidebarInset>
+      </div>
+    </SidebarProvider>
+  );
+}
+
+function Forbidden() {
+  const navigate = useNavigate();
+  return (
+    <div className="flex flex-1 items-center justify-center p-8">
+      <div className="max-w-md rounded-xl border border-destructive/30 bg-destructive/5 p-8 text-center">
+        <ShieldAlert className="mx-auto h-10 w-10 text-destructive" />
+        <h2 className="mt-3 text-lg font-semibold text-foreground">Acceso restringido</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Tu rol no tiene permisos para acceder a este módulo.
+        </p>
+        <button
+          onClick={() => navigate({ to: "/" })}
+          className="mt-4 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
+        >
+          Volver al Dashboard
+        </button>
+      </div>
+    </div>
   );
 }
