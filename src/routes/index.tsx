@@ -13,6 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import {
   KPIS, consumoMensual, distribucionServicios, nivelInventario,
 } from "@/lib/mock-data";
+import { formatNumber } from "@/lib/format";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -34,10 +35,10 @@ function Dashboard() {
         <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
           <KpiCard label="OTs Abiertas" value={KPIS.otsAbiertas} delta="+8% vs semana ant." trend="up" icon={ClipboardList} />
           <KpiCard label="OTs Cerradas" value={KPIS.otsCerradas} delta="+12% MTD" trend="up" icon={CheckCircle2} tone="success" />
-          <KpiCard label="Repuestos consumidos" value={KPIS.repuestosConsumidos.toLocaleString()} delta="Mes en curso" icon={Package} />
-          <KpiCard label="Inventario disponible" value={KPIS.inventarioDisponible.toLocaleString()} delta="Unidades totales" icon={Boxes} />
+          <KpiCard label="Repuestos consumidos" value={formatNumber(KPIS.repuestosConsumidos)} delta="Mes en curso" icon={Package} />
+          <KpiCard label="Inventario disponible" value={formatNumber(KPIS.inventarioDisponible)} delta="Unidades totales" icon={Boxes} />
           <KpiCard label="Quiebres de stock" value={KPIS.quiebresStock} delta="Requiere atención" trend="down" icon={AlertTriangle} tone="destructive" />
-          <KpiCard label="Predicción demanda" value={KPIS.prediccionDemanda.toLocaleString()} delta="Próximo mes" trend="up" icon={TrendingUp} tone="success" />
+          <KpiCard label="Predicción demanda" value={formatNumber(KPIS.prediccionDemanda)} delta="Próximo mes" trend="up" icon={TrendingUp} tone="success" />
         </section>
 
         <section className="grid grid-cols-1 gap-4 lg:grid-cols-3">
