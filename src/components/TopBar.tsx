@@ -1,10 +1,28 @@
-import { Bell, Search, UserCircle } from "lucide-react";
+import { Bell, LogOut, Search, UserCircle } from "lucide-react";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { useAuth } from "@/lib/auth";
+import { useNavigate } from "@tanstack/react-router";
 
 export function TopBar({ title, subtitle }: { title: string; subtitle?: string }) {
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+
+  function handleLogout() {
+    logout();
+    navigate({ to: "/login" });
+  }
+
   return (
     <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b bg-card px-4">
       <SidebarTrigger />
@@ -26,13 +44,27 @@ export function TopBar({ title, subtitle }: { title: string; subtitle?: string }
           <Bell className="h-4 w-4" />
           <Badge className="absolute -right-1 -top-1 h-4 min-w-4 px-1 text-[10px]">3</Badge>
         </Button>
-        <div className="flex items-center gap-2 rounded-md border bg-background px-2 py-1">
-          <UserCircle className="h-5 w-5 text-primary" />
-          <div className="hidden text-xs leading-tight sm:block">
-            <div className="font-medium">Carlos Mendoza</div>
-            <div className="text-muted-foreground">Administrador</div>
-          </div>
-        </div>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button className="flex items-center gap-2 rounded-md border bg-background px-2 py-1 transition hover:bg-accent">
+              <UserCircle className="h-5 w-5 text-primary" />
+              <div className="hidden text-left text-xs leading-tight sm:block">
+                <div className="font-medium">{user?.nombre ?? "Invitado"}</div>
+                <div className="text-muted-foreground">{user?.rolLabel ?? "—"}</div>
+              </div>
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuLabel>
+              <div className="text-sm font-medium">{user?.nombre}</div>
+              <div className="text-xs text-muted-foreground">{user?.email}</div>
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={handleLogout} className="text-destructive focus:text-destructive">
+              <LogOut className="mr-2 h-4 w-4" /> Cerrar sesión
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </header>
   );

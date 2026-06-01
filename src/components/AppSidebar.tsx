@@ -21,6 +21,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
+import { canAccess, useAuth } from "@/lib/auth";
 
 const items = [
   { title: "Dashboard Ejecutivo", url: "/", icon: LayoutDashboard },
@@ -34,6 +35,8 @@ const items = [
 
 export function AppSidebar() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const { user } = useAuth();
+  const visible = items.filter((i) => canAccess(user?.rol, i.url));
 
   return (
     <Sidebar collapsible="icon">
@@ -55,7 +58,7 @@ export function AppSidebar() {
           <SidebarGroupLabel>Plataforma</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {items.map((item) => {
+              {visible.map((item) => {
                 const isActive =
                   item.url === "/" ? pathname === "/" : pathname.startsWith(item.url);
                 return (
