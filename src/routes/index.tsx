@@ -25,7 +25,7 @@ export const Route = createFileRoute("/")({
 const PIE_COLORS = ["#0D47A1", "#1565C0", "#42A5F5", "#90CAF9"];
 
 function Dashboard() {
-  const { data: kpis } = useKpis();
+  const { data: kpis, error: kpisError } = useKpis();
   const { data: consumoMensual } = useConsumoMensual();
   const { data: distribucionServicios } = useDistribucionServicios();
   const { data: nivelInventario } = useNivelInventario();
@@ -39,6 +39,11 @@ function Dashboard() {
     <>
       <TopBar title="Dashboard Ejecutivo" subtitle="Visión global de la operación y supply chain" />
       <main className="flex-1 space-y-6 p-6">
+        {kpisError && (
+          <div className="rounded-lg border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+            <strong>Error de conexión con Supabase:</strong> {kpisError}
+          </div>
+        )}
         <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
           <KpiCard label="OTs Abiertas" value={k.otsAbiertas} delta="+8% vs semana ant." trend="up" icon={ClipboardList} />
           <KpiCard label="OTs Cerradas" value={k.otsCerradas} delta="+12% MTD" trend="up" icon={CheckCircle2} tone="success" />

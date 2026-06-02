@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabase";
+import { supabase, supabaseReady } from "@/lib/supabase";
 
 // ── tipos exportados ──────────────────────────────────────────────────────────
 
@@ -56,18 +56,40 @@ export interface TopRepuesto {
 
 // ── helpers internos ──────────────────────────────────────────────────────────
 
+const TIMEOUT_MS = 10_000;
+
 function useQuery<T>(fetcher: () => Promise<T>, deps: unknown[] = []) {
   const [data, setData] = useState<T | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!supabaseReady) {
+      setError("Variables de entorno de Supabase no configuradas. Revisar Vercel → Settings → Environment Variables.");
+      setLoading(false);
+      return;
+    }
+
     let cancelled = false;
     setLoading(true);
+    setError(null);
+
+    const timeout = setTimeout(() => {
+      if (!cancelled) {
+        setError("Tiempo de espera agotado (10s). Verificar conexión con Supabase.");
+        setLoading(false);
+      }
+    }, TIMEOUT_MS);
+
     fetcher()
-      .then((d) => { if (!cancelled) { setData(d); setLoading(false); } })
-      .catch((e: Error) => { if (!cancelled) { setError(e.message); setLoading(false); } });
-    return () => { cancelled = true; };
+      .then((d) => {
+        if (!cancelled) { clearTimeout(timeout); setData(d); setLoading(false); }
+      })
+      .catch((e: Error) => {
+        if (!cancelled) { clearTimeout(timeout); setError(e.message); setLoading(false); }
+      });
+
+    return () => { cancelled = true; clearTimeout(timeout); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, deps);
 
