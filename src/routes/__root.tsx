@@ -3,6 +3,7 @@ import {
   Outlet,
   createRootRouteWithContext,
   useRouter,
+  useRouterState,
 } from "@tanstack/react-router";
 import { useEffect } from "react";
 
@@ -69,17 +70,27 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const isPublic = pathname === "/login";
+
   return (
     <QueryClientProvider client={queryClient}>
-      <SidebarProvider>
-        <div className="flex min-h-screen w-full bg-background">
-          <AppSidebar />
-          <SidebarInset className="flex min-w-0 flex-1 flex-col">
-            <Outlet />
-          </SidebarInset>
-        </div>
-        <Toaster />
-      </SidebarProvider>
+      {isPublic ? (
+        <>
+          <Outlet />
+          <Toaster />
+        </>
+      ) : (
+        <SidebarProvider>
+          <div className="flex min-h-screen w-full bg-background">
+            <AppSidebar />
+            <SidebarInset className="flex min-w-0 flex-1 flex-col">
+              <Outlet />
+            </SidebarInset>
+          </div>
+          <Toaster />
+        </SidebarProvider>
+      )}
     </QueryClientProvider>
   );
 }
