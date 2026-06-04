@@ -66,7 +66,7 @@ function AlmacenPage() {
         <section className="grid grid-cols-1 gap-4 md:grid-cols-4">
           {[
             { l: "SKUs activos", v: inventario.length, c: "text-primary" },
-            { l: "Stock total", v: inventario.reduce((s, i) => s + i.stock, 0).toLocaleString(), c: "text-foreground" },
+            { l: "Stock total", v: inventario.reduce((s, i) => s + i.stock, 0).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ","), c: "text-foreground" },
             { l: "Alertas críticas", v: inventario.filter((i) => i.estado === "Crítico").length, c: "text-destructive" },
             { l: "Stock en exceso", v: inventario.filter((i) => i.estado === "Exceso").length, c: "text-info" },
           ].map((m) => (

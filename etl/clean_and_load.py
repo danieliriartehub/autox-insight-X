@@ -1,5 +1,6 @@
 import os
 import logging
+import time
 import pandas as pd
 from dotenv import load_dotenv
 from supabase import create_client, Client
@@ -140,10 +141,24 @@ def load_to_supabase(tables: dict[str, pd.DataFrame]) -> None:
         batch_size = 500
         for i in range(0, len(records), batch_size):
             batch = records[i : i + batch_size]
-            if mode == "upsert":
-                supabase.table(table_name).upsert(batch).execute()
-            else:
-                supabase.table(table_name).insert(batch).execute()
+            retries = 3
+            while retries > 0:
+                try:
+                    if mode == "upsert":
+                        supabase.table(table_name).upsert(batch).execute()
+                    else:
+                        supabase.table(table_name).insert(batch).execute()
+                    log.info(f"  Batch {i // batch_size + 1} cargado ({len(batch)} registros)")
+                    time.sleep(0.5)  # Pequeño delay entre batches
+                    break
+                except Exception as e:
+                    retries -= 1
+                    if retries > 0:
+                        log.warning(f"  Error en batch, reintentando ({retries} intentos restantes)…")
+                        time.sleep(2)
+                    else:
+                        log.error(f"  Error final en batch: {e}")
+                        raise
         log.info(f"  ✓ '{table_name}' cargada.")
 
 

@@ -45,6 +45,7 @@ function Dashboard() {
           </div>
         )}
         <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+<<<<<<< HEAD
           <KpiCard label="OTs Abiertas" value={k.otsAbiertas} delta="+8% vs semana ant." trend="up" icon={ClipboardList} />
           <KpiCard label="OTs Cerradas" value={k.otsCerradas} delta="+12% MTD" trend="up" icon={CheckCircle2} tone="success" />
           <KpiCard label="Repuestos consumidos" value={k.repuestosConsumidos.toLocaleString()} delta="Mes en curso" icon={Package} />
