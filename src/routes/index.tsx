@@ -1,165 +1,208 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useState, type FormEvent } from "react";
 import {
-  Activity, ClipboardList, CheckCircle2, Package, Boxes, AlertTriangle, TrendingUp,
+  Gauge,
+  ShieldCheck,
+  Eye,
+  EyeOff,
+  LogIn,
 } from "lucide-react";
-import {
-  Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Legend, Line, LineChart,
-  Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis,
-} from "recharts";
-
-import { TopBar } from "@/components/TopBar";
-import { KpiCard } from "@/components/KpiCard";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { useKpis, useConsumoMensual, useDistribucionServicios, useNivelInventario } from "@/hooks/useData";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Dashboard Ejecutivo — bpA Motors SCM" },
-      { name: "description", content: "Indicadores clave de operación, inventario y predicción de demanda." },
+      { title: "Iniciar sesión — bpA Motors SCM" },
+      {
+        name: "description",
+        content:
+          "Accede con tus credenciales corporativas al sistema de inteligencia operativa bpA Motors.",
+      },
     ],
   }),
-  component: Dashboard,
+  component: LoginPage,
 });
 
-const PIE_COLORS = ["#0D47A1", "#1565C0", "#42A5F5", "#90CAF9"];
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-function Dashboard() {
-  const { data: kpis, error: kpisError } = useKpis();
-  const { data: consumoMensual } = useConsumoMensual();
-  const { data: distribucionServicios } = useDistribucionServicios();
-  const { data: nivelInventario } = useNivelInventario();
+function LoginPage() {
+  const navigate = useNavigate();
 
-  const k = kpis ?? { otsAbiertas: 0, otsCerradas: 0, repuestosConsumidos: 0, inventarioDisponible: 0, quiebresStock: 0, prediccionDemanda: 0 };
-  const consumo = consumoMensual ?? [];
-  const distribucion = distribucionServicios ?? [];
-  const nivel = nivelInventario ?? [];
+  const [email, setEmail] = useState("");
+  const [emailError, setEmailError] = useState(false);
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+
+  const validateEmail = () => {
+    const invalid = !EMAIL_REGEX.test(email);
+    setEmailError(invalid);
+    return !invalid;
+  };
+
+  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!validateEmail()) return;
+    void navigate({ to: "/dashboard" });
+  };
 
   return (
-    <>
-      <TopBar title="Dashboard Ejecutivo" subtitle="Visión global de la operación y supply chain" />
-      <main className="flex-1 space-y-6 p-6">
-        {kpisError && (
-          <div className="rounded-lg border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-            <strong>Error de conexión con Supabase:</strong> {kpisError}
+    <div className="flex min-h-screen w-full items-center justify-center bg-slate-50 p-4">
+      <div className="flex w-full max-w-5xl overflow-hidden rounded-xl shadow-lg">
+
+        {/* ── Panel Izquierdo: Branding ── */}
+        <div className="hidden w-1/2 flex-col justify-between bg-[#03369A] p-12 text-white lg:flex">
+
+          {/* Header del panel */}
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-white/20 bg-white/10">
+              <Gauge className="h-5 w-5 text-white" />
+            </div>
+            <div>
+              <p className="text-sm font-bold leading-tight">bpA Motors</p>
+              <p className="text-[11px] uppercase tracking-widest text-white/60">
+                SCM INTELLIGENCE
+              </p>
+            </div>
           </div>
-        )}
-        <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-          <KpiCard label="OTs Abiertas" value={k.otsAbiertas} delta="+8% vs semana ant." trend="up" icon={ClipboardList} />
-          <KpiCard label="OTs Cerradas" value={k.otsCerradas} delta="+12% MTD" trend="up" icon={CheckCircle2} tone="success" />
-          <KpiCard label="Repuestos consumidos" value={k.repuestosConsumidos.toLocaleString()} delta="Mes en curso" icon={Package} />
-          <KpiCard label="Inventario disponible" value={k.inventarioDisponible.toLocaleString()} delta="Unidades totales" icon={Boxes} />
-          <KpiCard label="Quiebres de stock" value={k.quiebresStock} delta="Requiere atención" trend="down" icon={AlertTriangle} tone="destructive" />
-          <KpiCard label="Predicción demanda" value={k.prediccionDemanda.toLocaleString()} delta="Próximo mes" trend="up" icon={TrendingUp} tone="success" />
-        </section>
 
-        <section className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-          <Card className="lg:col-span-2">
-            <CardHeader>
-              <CardTitle className="text-base">Consumo mensual de repuestos</CardTitle>
-              <CardDescription>Consumo real vs. predicción del modelo</CardDescription>
-            </CardHeader>
-            <CardContent className="h-72">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={consumo}>
-                  <defs>
-                    <linearGradient id="g1" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#1565C0" stopOpacity={0.5} />
-                      <stop offset="100%" stopColor="#1565C0" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.4} />
-                  <XAxis dataKey="mes" fontSize={12} stroke="#64748b" />
-                  <YAxis fontSize={12} stroke="#64748b" />
-                  <Tooltip contentStyle={{ borderRadius: 8, border: "1px solid #e2e8f0" }} />
-                  <Legend />
-                  <Area type="monotone" dataKey="consumo" name="Consumo real" stroke="#0D47A1" fill="url(#g1)" strokeWidth={2} />
-                  <Line type="monotone" dataKey="prediccion" name="Predicción IA" stroke="#42A5F5" strokeWidth={2} strokeDasharray="4 4" dot={false} />
-                </AreaChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
+          {/* Cuerpo del panel */}
+          <div>
+            <h1 className="mb-4 text-4xl font-bold leading-tight">
+              Inteligencia operativa para tu taller multimarca.
+            </h1>
+            <p className="text-lg text-blue-100">
+              Predicción de demanda, control de inventario y trazabilidad
+              end-to-end.
+            </p>
+          </div>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Distribución por tipo de servicio</CardTitle>
-              <CardDescription>Participación %</CardDescription>
-            </CardHeader>
-            <CardContent className="h-72">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie data={distribucion} dataKey="valor" nameKey="tipo" innerRadius={55} outerRadius={90} paddingAngle={2}>
-                    {distribucion.map((_, i) => (
-                      <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                  <Legend wrapperStyle={{ fontSize: 12 }} />
-                </PieChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-        </section>
+          {/* Footer del panel */}
+          <div>
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="h-4 w-4 text-white/80" />
+              <span className="text-sm font-bold">Acceso seguro</span>
+            </div>
+            <p className="mt-1 text-xs text-white/50">
+              bPA Motors · Surquillo
+            </p>
+          </div>
+        </div>
 
-        <section className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Tendencia de demanda (histórico)</CardTitle>
-            </CardHeader>
-            <CardContent className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={consumo}>
-                  <CartesianGrid strokeDasharray="3 3" opacity={0.4} />
-                  <XAxis dataKey="mes" fontSize={12} stroke="#64748b" />
-                  <YAxis fontSize={12} stroke="#64748b" />
-                  <Tooltip />
-                  <Line type="monotone" dataKey="consumo" stroke="#0D47A1" strokeWidth={3} dot={{ r: 3 }} />
-                </LineChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
+        {/* ── Panel Derecho: Formulario ── */}
+        <div className="flex w-full flex-col justify-center bg-white p-12 lg:w-1/2">
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Nivel de inventario por categoría</CardTitle>
-              <CardDescription>Stock actual vs. stock mínimo</CardDescription>
-            </CardHeader>
-            <CardContent className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={nivel}>
-                  <CartesianGrid strokeDasharray="3 3" opacity={0.4} />
-                  <XAxis dataKey="categoria" fontSize={11} stroke="#64748b" />
-                  <YAxis fontSize={12} stroke="#64748b" />
-                  <Tooltip />
-                  <Legend wrapperStyle={{ fontSize: 12 }} />
-                  <Bar dataKey="actual" name="Stock actual" fill="#1565C0" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="minimo" name="Stock mínimo" fill="#90CAF9" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-        </section>
+          {/* Cabecera del formulario */}
+          <h2 className="text-2xl font-bold text-gray-900">Iniciar sesión</h2>
+          <p className="mb-8 mt-1 text-sm text-gray-500">
+            Ingresa con tus credenciales corporativas.
+          </p>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center gap-2">
-            <Activity className="h-4 w-4 text-primary" />
-            <CardTitle className="text-base">Salud operacional</CardTitle>
-          </CardHeader>
-          <CardContent className="grid grid-cols-2 gap-4 md:grid-cols-4">
-            {[
-              { l: "Tasa de cierre OT", v: k.otsCerradas ? `${Math.round((k.otsCerradas / (k.otsCerradas + k.otsAbiertas)) * 100)}%` : "—", c: "text-success" },
-              { l: "Cobertura de stock", v: "23 días", c: "text-primary" },
-              { l: "Precisión predictiva", v: "91.2%", c: "text-success" },
-              { l: "SLA proveedores", v: "94%", c: "text-success" },
-            ].map((m) => (
-              <div key={m.l} className="rounded-lg border bg-muted/30 p-4">
-                <div className="text-xs uppercase tracking-wider text-muted-foreground">{m.l}</div>
-                <div className={`mt-1 text-2xl font-semibold ${m.c}`}>{m.v}</div>
+          <form onSubmit={handleSubmit} className="flex flex-col gap-4" noValidate>
+
+            {/* Campo Email */}
+            <div className="flex flex-col gap-1">
+              <label
+                htmlFor="login-email"
+                className="text-sm font-medium text-gray-700"
+              >
+                Email
+              </label>
+              <input
+                id="login-email"
+                type="email"
+                autoComplete="email"
+                placeholder="usuario@bpamotors.com"
+                value={email}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  if (emailError) setEmailError(false);
+                }}
+                onBlur={validateEmail}
+                className={[
+                  "h-10 w-full rounded-md border px-3 text-sm text-gray-900 outline-none",
+                  "placeholder:text-gray-400 transition-colors duration-150",
+                  "focus:border-[#03369A] focus:ring-2 focus:ring-[#03369A]/20",
+                  emailError
+                    ? "border-red-500 focus:border-red-500 focus:ring-red-500/20"
+                    : "border-gray-300",
+                ].join(" ")}
+              />
+              {emailError && (
+                <p className="text-xs text-red-500">
+                  Introduce un correo electrónico válido.
+                </p>
+              )}
+            </div>
+
+            {/* Campo Contraseña */}
+            <div className="flex flex-col gap-1">
+              <label
+                htmlFor="login-password"
+                className="text-sm font-medium text-gray-700"
+              >
+                Contraseña
+              </label>
+              <div className="relative">
+                <input
+                  id="login-password"
+                  type={showPassword ? "text" : "password"}
+                  autoComplete="current-password"
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className={[
+                    "h-10 w-full rounded-md border border-gray-300 px-3 pr-10",
+                    "text-sm text-gray-900 outline-none placeholder:text-gray-400",
+                    "transition-colors duration-150",
+                    "focus:border-[#03369A] focus:ring-2 focus:ring-[#03369A]/20",
+                  ].join(" ")}
+                />
+                <button
+                  id="toggle-password-visibility"
+                  type="button"
+                  onClick={() => setShowPassword((prev) => !prev)}
+                  aria-label={
+                    showPassword ? "Ocultar contraseña" : "Mostrar contraseña"
+                  }
+                  className="absolute inset-y-0 right-0 flex items-center px-3 text-gray-400 hover:text-gray-600"
+                >
+                  {showPassword ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
+                </button>
               </div>
-            ))}
-          </CardContent>
-        </Card>
-      </main>
-    </>
+            </div>
+
+            {/* Link ¿Olvidaste tu contraseña? */}
+            <div className="flex justify-end">
+              <a
+                id="forgot-password-link"
+                href="#"
+                className="cursor-pointer text-xs text-[#03369A] hover:underline"
+              >
+                ¿Olvidaste tu contraseña?
+              </a>
+            </div>
+
+            {/* Botón de Acción */}
+            <button
+              id="login-submit-btn"
+              type="submit"
+              disabled={!email || !password || !EMAIL_REGEX.test(email)}
+              className={[
+                "mt-6 flex h-10 w-full items-center justify-center gap-2 rounded-md text-sm font-semibold text-white transition-all duration-150",
+                (!email || !password || !EMAIL_REGEX.test(email))
+                  ? "bg-gray-300 cursor-not-allowed opacity-70"
+                  : "bg-[#03369A] cursor-pointer hover:opacity-90 active:opacity-80",
+              ].join(" ")}
+            >
+              <LogIn className="h-4 w-4" />
+              Entrar
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
   );
 }
