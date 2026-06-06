@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/sidebar";
 
 const items = [
-  { title: "Dashboard Ejecutivo", url: "/", icon: LayoutDashboard },
+  { title: "Dashboard Ejecutivo", url: "/dashboard", icon: LayoutDashboard },
   { title: "Taller", url: "/taller", icon: Wrench },
   { title: "Almacén", url: "/almacen", icon: Warehouse },
   { title: "Catálogo Maestro", url: "/catalogo", icon: BookOpen },
@@ -57,7 +57,7 @@ export function AppSidebar() {
             <SidebarMenu>
               {items.map((item) => {
                 const isActive =
-                  item.url === "/" ? pathname === "/" : pathname.startsWith(item.url);
+                  item.url === "/dashboard" ? pathname === "/dashboard" : pathname.startsWith(item.url);
                 return (
                   <SidebarMenuItem key={item.title}>
                     <SidebarMenuButton asChild isActive={isActive} tooltip={item.title}>

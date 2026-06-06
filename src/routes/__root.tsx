@@ -19,7 +19,7 @@ function NotFoundComponent() {
         <h1 className="text-7xl font-bold text-foreground">404</h1>
         <p className="mt-2 text-sm text-muted-foreground">Página no encontrada</p>
         <a
-          href="/"
+          href="/dashboard"
           className="mt-6 inline-flex rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
         >
           Ir al Dashboard
@@ -51,7 +51,7 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
             Reintentar
           </button>
           <a
-            href="/"
+            href="/dashboard"
             className="inline-flex rounded-md border border-input bg-background px-4 py-2 text-sm font-medium"
           >
             Ir al inicio
@@ -71,7 +71,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const isPublic = pathname === "/login";
+  const isPublic = pathname === "/";
 
   return (
     <QueryClientProvider client={queryClient}>

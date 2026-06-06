@@ -11,7 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as TallerRouteImport } from './routes/taller'
 import { Route as PrediccionRouteImport } from './routes/prediccion'
-import { Route as LoginRouteImport } from './routes/login'
+import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as CatalogoRouteImport } from './routes/catalogo'
 import { Route as AnalyticsRouteImport } from './routes/analytics'
 import { Route as AlmacenRouteImport } from './routes/almacen'
@@ -28,9 +28,9 @@ const PrediccionRoute = PrediccionRouteImport.update({
   path: '/prediccion',
   getParentRoute: () => rootRouteImport,
 } as any)
-const LoginRoute = LoginRouteImport.update({
-  id: '/login',
-  path: '/login',
+const DashboardRoute = DashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CatalogoRoute = CatalogoRouteImport.update({
@@ -65,7 +65,7 @@ export interface FileRoutesByFullPath {
   '/almacen': typeof AlmacenRoute
   '/analytics': typeof AnalyticsRoute
   '/catalogo': typeof CatalogoRoute
-  '/login': typeof LoginRoute
+  '/dashboard': typeof DashboardRoute
   '/prediccion': typeof PrediccionRoute
   '/taller': typeof TallerRoute
 }
@@ -75,7 +75,7 @@ export interface FileRoutesByTo {
   '/almacen': typeof AlmacenRoute
   '/analytics': typeof AnalyticsRoute
   '/catalogo': typeof CatalogoRoute
-  '/login': typeof LoginRoute
+  '/dashboard': typeof DashboardRoute
   '/prediccion': typeof PrediccionRoute
   '/taller': typeof TallerRoute
 }
@@ -86,7 +86,7 @@ export interface FileRoutesById {
   '/almacen': typeof AlmacenRoute
   '/analytics': typeof AnalyticsRoute
   '/catalogo': typeof CatalogoRoute
-  '/login': typeof LoginRoute
+  '/dashboard': typeof DashboardRoute
   '/prediccion': typeof PrediccionRoute
   '/taller': typeof TallerRoute
 }
@@ -98,7 +98,7 @@ export interface FileRouteTypes {
     | '/almacen'
     | '/analytics'
     | '/catalogo'
-    | '/login'
+    | '/dashboard'
     | '/prediccion'
     | '/taller'
   fileRoutesByTo: FileRoutesByTo
@@ -108,7 +108,7 @@ export interface FileRouteTypes {
     | '/almacen'
     | '/analytics'
     | '/catalogo'
-    | '/login'
+    | '/dashboard'
     | '/prediccion'
     | '/taller'
   id:
@@ -118,7 +118,7 @@ export interface FileRouteTypes {
     | '/almacen'
     | '/analytics'
     | '/catalogo'
-    | '/login'
+    | '/dashboard'
     | '/prediccion'
     | '/taller'
   fileRoutesById: FileRoutesById
@@ -129,7 +129,7 @@ export interface RootRouteChildren {
   AlmacenRoute: typeof AlmacenRoute
   AnalyticsRoute: typeof AnalyticsRoute
   CatalogoRoute: typeof CatalogoRoute
-  LoginRoute: typeof LoginRoute
+  DashboardRoute: typeof DashboardRoute
   PrediccionRoute: typeof PrediccionRoute
   TallerRoute: typeof TallerRoute
 }
@@ -150,11 +150,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PrediccionRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/login': {
-      id: '/login'
-      path: '/login'
-      fullPath: '/login'
-      preLoaderRoute: typeof LoginRouteImport
+    '/dashboard': {
+      id: '/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof DashboardRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/catalogo': {
@@ -201,7 +201,7 @@ const rootRouteChildren: RootRouteChildren = {
   AlmacenRoute: AlmacenRoute,
   AnalyticsRoute: AnalyticsRoute,
   CatalogoRoute: CatalogoRoute,
-  LoginRoute: LoginRoute,
+  DashboardRoute: DashboardRoute,
   PrediccionRoute: PrediccionRoute,
   TallerRoute: TallerRoute,
 }
