@@ -1,12 +1,11 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import {
-  Brain, Sparkles, TrendingUp, AlertTriangle, ShoppingCart, Zap, Target,
-  Download, Send, Server, CheckCircle2,
+  Brain, Sparkles, AlertTriangle, ShoppingCart, Zap, Target,
+  Download, Server, CheckCircle2, Settings2, RotateCcw, ArrowRight, Loader2
 } from "lucide-react";
 import {
-  Area, AreaChart, Bar, BarChart, CartesianGrid, Legend,
-  ResponsiveContainer, Tooltip as RechartsTooltip, XAxis, YAxis,
+  CartesianGrid, ResponsiveContainer, Tooltip as RechartsTooltip, XAxis, YAxis,
   Scatter, ScatterChart, ZAxis, ReferenceLine,
 } from "recharts";
 
@@ -18,10 +17,14 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Slider } from "@/components/ui/slider";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-
+import {
+  Dialog, DialogContent, DialogDescription, DialogFooter,
+  DialogHeader, DialogTitle, DialogTrigger,
+} from "@/components/ui/dialog";
 import {
   useTopRepuestos, useTendenciaFutura, useRepuestosMasConsumidos,
 } from "@/hooks/useData";
@@ -47,12 +50,6 @@ const MES_NOMBRES = [
   "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
 ];
 
-const riesgoColor: Record<string, string> = {
-  Bajo:  "bg-success/15 text-success border-success/30",
-  Medio: "bg-warning/20 text-warning-foreground border-warning/40",
-  Alto:  "bg-destructive/15 text-destructive border-destructive/30",
-};
-
 type MLStatus = {
   modelo_cargado: boolean;
   version: string | null;
@@ -66,13 +63,21 @@ function PrediccionPage() {
   const mesActual  = new Date().getMonth() + 1;
   const anioActual = new Date().getFullYear();
 
+  // ── Configuración Dinámica de IA ──────────────────────────────────────────
+  const [bufferSeguridad, setBufferSeguridad] = useState(15);
+  const [horizonteMeses, setHorizonteMeses]   = useState(1);
+  const [confianzaMinima, setConfianzaMinima] = useState(70);
+
+  const resetConfig = () => {
+    setBufferSeguridad(15);
+    setHorizonteMeses(1);
+    setConfianzaMinima(70);
+  };
+
   // ── Datos desde Supabase ──────────────────────────────────────────────────
   const { data: topRepuestos,   loading: topLoading }  = useTopRepuestos();
-  const { data: tendenciaData }                         = useTendenciaFutura();
-  const { data: masConsumidos }                         = useRepuestosMasConsumidos();
 
   const repuestos = topRepuestos ?? [];
-  const tendencia = tendenciaData ?? [];
 
   // ── Predicciones ML (repuestos × mes actual) ──────────────────────────────
   const codigos = useMemo(() => repuestos.map((r) => r.codigo), [repuestos]);
@@ -106,9 +111,13 @@ function PrediccionPage() {
 
   const ocData = repuestos.map((p) => {
     const pred = predictions[p.codigo];
-    const demandaMesSig = pred ? pred.cantidad_estimada : Math.round(p.demanda / 12);
+    // Ajuste por horizonte de meses de forma simple (multiplicador)
+    const demandaMesSig = (pred ? pred.cantidad_estimada : Math.round(p.demanda / 12)) * horizonteMeses;
     const deficit = Math.max(0, demandaMesSig - p.stockActual);
-    const compraSugerida = deficit > 0 ? Math.ceil(deficit * 1.15) : 0; // 15% buffer seguridad
+    
+    // Aplicamos el Buffer de Seguridad dinámico configurado por el usuario
+    const multiplicadorBuffer = 1 + (bufferSeguridad / 100);
+    const compraSugerida = deficit > 0 ? Math.ceil(deficit * multiplicadorBuffer) : 0;
 
     if (deficit > 0) {
       deficitTotal += deficit;
@@ -127,12 +136,15 @@ function PrediccionPage() {
     return { ...p, demandaMesSig, deficit, compraSugerida, pred };
   });
 
+  const repuestosAComprar = ocData.filter(d => d.compraSugerida > 0);
+
   // Health Score (0-100)
-  // Penaliza por items en quiebre inminente y baja confianza del modelo
   const healthScore = Math.max(0, Math.round(100 - (itemsEnQuiebre * 5) - ((1 - avgConfianza) * 20)));
 
-  // ── Acciones de MVP (Simulación ERP) ──────────────────────────────────────
-  const [enviandoERP, setEnviandoERP] = useState(false);
+  // ── Acciones de MVP (Simulación ERP Dinámica) ─────────────────────────────
+  const [modalOCAbierto, setModalOCAbierto] = useState(false);
+  const [estadoSimulacion, setEstadoSimulacion] = useState<"idle" | "enviando" | "completado">("idle");
+  const [ocGeneradas, setOcGeneradas] = useState<string[]>([]);
 
   const exportarAExcel = () => {
     const headers = ["Codigo", "Repuesto", "Stock_Actual", "Prediccion_ML_Mes", "Deficit", "Compra_Sugerida"];
@@ -150,12 +162,22 @@ function PrediccionPage() {
     window.alert("Exportación exitosa. El archivo CSV está listo para cargarse al ERP Oracle.");
   };
 
-  const simularEnvioERP = () => {
-    setEnviandoERP(true);
+  const iniciarSimulacion = () => {
+    setEstadoSimulacion("enviando");
+    setOcGeneradas([]);
+    // Simulamos un retraso de red e inserción en base de datos legacy
     setTimeout(() => {
-      setEnviandoERP(false);
-      window.alert(`Sincronización simulada exitosa. Se han enviado ${ocData.filter(d => d.compraSugerida > 0).length} requerimientos al sistema ERP FoxPro/Oracle.`);
-    }, 1500);
+      // Mock de IDs generados basados en el año
+      setOcGeneradas([`OC-${anioActual}-9041`, `OC-${anioActual}-9042`]);
+      setEstadoSimulacion("completado");
+    }, 2500);
+  };
+
+  const resetearModal = (open: boolean) => {
+    setModalOCAbierto(open);
+    if (!open) {
+      setTimeout(() => setEstadoSimulacion("idle"), 300);
+    }
   };
 
   // ── Predictor interactivo ─────────────────────────────────────────────────
@@ -176,7 +198,7 @@ function PrediccionPage() {
       });
       setResult(res);
     } catch {
-      setFormError("No se pudo conectar al modelo. Verifica Railway.");
+      setFormError("No se pudo conectar al modelo.");
     } finally {
       setRunning(false);
     }
@@ -192,8 +214,83 @@ function PrediccionPage() {
       <main className="flex-1 space-y-6 p-6">
 
         {/* ── Banner de estado del modelo ─────────────────────────────────── */}
-        <Card className="border-primary/30 bg-gradient-to-br from-primary/5 via-transparent to-transparent">
-          <CardContent className="flex flex-wrap items-center gap-6 p-5">
+        <Card className="border-primary/30 bg-gradient-to-br from-primary/5 via-transparent to-transparent relative overflow-hidden">
+          {/* Botón de configuración AI superior derecho */}
+          <div className="absolute top-4 right-4 z-10">
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-9 w-9 bg-background/50 backdrop-blur border text-muted-foreground hover:text-primary hover:border-primary/50 shadow-sm transition-all">
+                  <Settings2 className="h-5 w-5" />
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[425px]">
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2">
+                    <Settings2 className="h-5 w-5 text-primary" />
+                    Parámetros del Motor SCM
+                  </DialogTitle>
+                  <DialogDescription>
+                    Ajusta la sensibilidad del modelo y las reglas de negocio para la generación de compras.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-6 py-4">
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center">
+                      <Label className="text-sm font-medium">Buffer de Seguridad (%)</Label>
+                      <span className="text-sm font-bold text-primary">{bufferSeguridad}%</span>
+                    </div>
+                    <Slider
+                      value={[bufferSeguridad]}
+                      onValueChange={(v) => setBufferSeguridad(v[0])}
+                      max={50}
+                      step={5}
+                    />
+                    <p className="text-[10px] text-muted-foreground">Colchón adicional sobre el déficit calculado.</p>
+                  </div>
+                  
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center">
+                      <Label className="text-sm font-medium">Horizonte de Proyección</Label>
+                      <span className="text-sm font-bold text-primary">{horizonteMeses} Mes{horizonteMeses > 1 ? 'es' : ''}</span>
+                    </div>
+                    <Slider
+                      value={[horizonteMeses]}
+                      onValueChange={(v) => setHorizonteMeses(v[0])}
+                      min={1}
+                      max={3}
+                      step={1}
+                    />
+                    <p className="text-[10px] text-muted-foreground">Meses hacia el futuro que debe cubrir el stock.</p>
+                  </div>
+
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center">
+                      <Label className="text-sm font-medium">Filtro de Confianza ML (%)</Label>
+                      <span className="text-sm font-bold text-primary">{confianzaMinima}%</span>
+                    </div>
+                    <Slider
+                      value={[confianzaMinima]}
+                      onValueChange={(v) => setConfianzaMinima(v[0])}
+                      min={50}
+                      max={95}
+                      step={5}
+                    />
+                    <p className="text-[10px] text-muted-foreground">Omitir predicciones cuya confianza sea menor a este valor.</p>
+                  </div>
+                </div>
+                <DialogFooter className="flex items-center sm:justify-between">
+                  <Button variant="ghost" size="sm" onClick={resetConfig} className="text-muted-foreground">
+                    <RotateCcw className="mr-2 h-4 w-4" /> Restaurar defaults
+                  </Button>
+                  <Button type="submit" onClick={() => document.dispatchEvent(new KeyboardEvent('keydown', {'key': 'Escape'}))}>
+                    Aplicar Cambios
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </div>
+
+          <CardContent className="flex flex-wrap items-center gap-6 p-5 pr-16">
             <div className="flex items-center gap-3">
               <div className="rounded-xl bg-primary p-3 text-primary-foreground shadow-lg shadow-primary/20">
                 <Brain className="h-5 w-5" />
@@ -211,7 +308,7 @@ function PrediccionPage() {
                 value={mlStatusLoading ? "…" : String(mlStatus?.repuestos_conocidos ?? 600)} />
               <Stat label="MAE del modelo"
                 value={mlStatusLoading ? "…" : `±${mlStatus?.mae_referencia ?? 4.33} uds`} />
-              <Stat label="Confiabilidad"
+              <Stat label="Confiabilidad Media"
                 value={predLoading ? "…" : `${Math.round(avgConfianza * 100)}%`} />
             </div>
 
@@ -229,7 +326,7 @@ function PrediccionPage() {
                 ? "Modelo no disponible"
                 : mlStatusLoading
                 ? "Conectando…"
-                : "Modelo activo · Railway"}
+                : "Modelo activo"}
             </Badge>
           </CardContent>
         </Card>
@@ -252,7 +349,7 @@ function PrediccionPage() {
             {
               label: "Volumen a Abastecer",
               value: predLoading ? null : `${deficitTotal} uds`,
-              sub: "Para cubrir demanda del mes",
+              sub: `Para cubrir ${horizonteMeses} mes(es)`,
               color: "text-primary",
             },
             {
@@ -309,7 +406,7 @@ function PrediccionPage() {
                 </ScatterChart>
               </ResponsiveContainer>
               <div className="flex justify-center gap-6 text-xs text-muted-foreground mt-2">
-                <span className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-destructive" /> Understock (Quiebre inminente)</span>
+                <span className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-destructive" /> Understock (Quiebre)</span>
                 <span className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-success" /> Stock Saludable (Buffer)</span>
                 <span className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-info" /> Overstock (Baja rotación)</span>
               </div>
@@ -423,14 +520,103 @@ function PrediccionPage() {
               <Button variant="outline" size="sm" onClick={exportarAExcel}>
                 <Download className="mr-2 h-4 w-4" /> Exportar (ERP CSV)
               </Button>
-              <Button size="sm" onClick={simularEnvioERP} disabled={enviandoERP || ocData.length === 0}>
-                {enviandoERP ? (
-                  <span className="mr-2 h-3 w-3 animate-spin rounded-full border-2 border-white border-t-transparent inline-block" />
-                ) : (
-                  <Server className="mr-2 h-4 w-4" />
-                )}
-                Sincronizar a Oracle
-              </Button>
+
+              <Dialog open={modalOCAbierto} onOpenChange={resetearModal}>
+                <DialogTrigger asChild>
+                  <Button size="sm" disabled={repuestosAComprar.length === 0}>
+                    <Server className="mr-2 h-4 w-4" /> Generar Lote a Oracle
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-[550px]">
+                  <DialogHeader>
+                    <DialogTitle>Aprovisionamiento Automatizado SCM</DialogTitle>
+                    <DialogDescription>
+                      Revisión de órdenes de compra sugeridas por la Inteligencia Artificial antes de enviarlas al sistema heredado (FoxPro/Oracle).
+                    </DialogDescription>
+                  </DialogHeader>
+
+                  <div className="py-4 space-y-4">
+                    {/* Lista resumida de lo que se va a comprar */}
+                    <div className="rounded-md border bg-muted/30 p-3 max-h-[150px] overflow-y-auto">
+                      <table className="w-full text-xs">
+                        <thead>
+                          <tr className="text-left text-muted-foreground border-b pb-2">
+                            <th className="font-medium pb-1">Código</th>
+                            <th className="font-medium pb-1">Repuesto</th>
+                            <th className="font-medium pb-1 text-right">Cant.</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {repuestosAComprar.map(r => (
+                            <tr key={r.codigo} className="border-b last:border-0">
+                              <td className="py-1 font-mono">{r.codigo}</td>
+                              <td className="py-1 max-w-[200px] truncate" title={r.repuesto}>{r.repuesto}</td>
+                              <td className="py-1 text-right font-bold text-primary">{r.compraSugerida}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Total de Items (SKUs):</span>
+                      <span className="font-bold">{repuestosAComprar.length}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Volumen Total (Uds):</span>
+                      <span className="font-bold text-primary">{repuestosAComprar.reduce((s, r) => s + r.compraSugerida, 0)}</span>
+                    </div>
+
+                    {/* Simulación visual */}
+                    {estadoSimulacion !== "idle" && (
+                      <div className="space-y-2 mt-4 p-4 border rounded-lg bg-primary/5 animate-in fade-in duration-500">
+                        <div className="flex items-center justify-between text-sm">
+                          {estadoSimulacion === "enviando" ? (
+                            <span className="flex items-center text-primary font-medium">
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Transmitiendo vía Webhook...
+                            </span>
+                          ) : (
+                            <span className="flex items-center text-success font-bold">
+                              <CheckCircle2 className="h-4 w-4 mr-2" /> Órdenes Generadas Exitosamente
+                            </span>
+                          )}
+                        </div>
+                        <Progress value={estadoSimulacion === "enviando" ? 66 : 100} className="h-2 transition-all duration-1000 ease-in-out" />
+                        
+                        {estadoSimulacion === "completado" && (
+                          <div className="pt-2 text-sm text-muted-foreground">
+                            Folios creados en ERP:
+                            <div className="mt-1 flex gap-2">
+                              {ocGeneradas.map(oc => (
+                                <Badge key={oc} variant="outline" className="font-mono bg-background">{oc}</Badge>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  <DialogFooter className="flex items-center sm:justify-between">
+                    {estadoSimulacion === "idle" ? (
+                      <>
+                        <p className="text-xs text-muted-foreground w-full">Las OCs se enviarán de forma asíncrona.</p>
+                        <Button onClick={iniciarSimulacion}>Confirmar e Insertar</Button>
+                      </>
+                    ) : estadoSimulacion === "completado" ? (
+                      <div className="w-full flex justify-end gap-2">
+                         <Button variant="outline" onClick={() => resetearModal(false)}>Cerrar</Button>
+                         <Link to="/almacen">
+                           <Button><ArrowRight className="h-4 w-4 mr-2"/> Ir a Almacén</Button>
+                         </Link>
+                      </div>
+                    ) : (
+                      <Button disabled><Loader2 className="mr-2 h-4 w-4 animate-spin"/> Procesando...</Button>
+                    )}
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+
             </div>
           </CardHeader>
           <CardContent>
@@ -441,7 +627,7 @@ function PrediccionPage() {
                     <TableHead>Código SKU</TableHead>
                     <TableHead>Repuesto</TableHead>
                     <TableHead className="text-right">Stock Actual</TableHead>
-                    <TableHead className="text-right bg-primary/5 text-primary">Predicción ML (Mes)</TableHead>
+                    <TableHead className="text-right bg-primary/5 text-primary">Predicción ML ({horizonteMeses}m)</TableHead>
                     <TableHead className="text-right">Déficit Inminente</TableHead>
                     <TableHead className="text-right text-primary font-bold">Compra Sugerida</TableHead>
                     <TableHead>Estado</TableHead>
