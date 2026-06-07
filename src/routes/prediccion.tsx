@@ -6,7 +6,7 @@ import {
 } from "lucide-react";
 import {
   CartesianGrid, ResponsiveContainer, Tooltip as RechartsTooltip, XAxis, YAxis,
-  Scatter, ScatterChart, ZAxis, ReferenceLine,
+  ComposedChart, Area, Bar, Legend,
 } from "recharts";
 
 import { TopBar } from "@/components/TopBar";
@@ -67,11 +67,13 @@ function PrediccionPage() {
   const [bufferSeguridad, setBufferSeguridad] = useState(15);
   const [horizonteMeses, setHorizonteMeses]   = useState(1);
   const [confianzaMinima, setConfianzaMinima] = useState(70);
+  const [factorEstacionalidad, setFactorEstacionalidad] = useState(1.0);
 
   const resetConfig = () => {
     setBufferSeguridad(15);
     setHorizonteMeses(1);
     setConfianzaMinima(70);
+    setFactorEstacionalidad(1.0);
   };
 
   // ── Datos desde Supabase ──────────────────────────────────────────────────
@@ -111,11 +113,18 @@ function PrediccionPage() {
 
   const ocData = repuestos.map((p) => {
     const pred = predictions[p.codigo];
-    // Ajuste por horizonte de meses de forma simple (multiplicador)
-    const demandaMesSig = (pred ? pred.cantidad_estimada : Math.round(p.demanda / 12)) * horizonteMeses;
+    const conf = pred ? pred.confianza * 100 : 0;
+    
+    // Si la confianza es menor a la mínima o no hay, usamos promedio histórico
+    const demandaBase = pred && conf >= confianzaMinima 
+      ? pred.cantidad_estimada 
+      : Math.round(p.demanda / 12);
+      
+    // Ajuste por horizonte y estacionalidad (multiplicadores)
+    const demandaMesSig = Math.round(demandaBase * horizonteMeses * factorEstacionalidad);
     const deficit = Math.max(0, demandaMesSig - p.stockActual);
     
-    // Aplicamos el Buffer de Seguridad dinámico configurado por el usuario
+    // Aplicamos el Buffer de Seguridad dinámico
     const multiplicadorBuffer = 1 + (bufferSeguridad / 100);
     const compraSugerida = deficit > 0 ? Math.ceil(deficit * multiplicadorBuffer) : 0;
 
@@ -127,13 +136,14 @@ function PrediccionPage() {
     scatterData.push({
       x: p.stockActual,
       y: demandaMesSig,
-      z: 100, // tamaño del punto
-      name: p.repuesto,
+      name: p.repuesto.split(" ")[0], // Nombre corto para el chart
       codigo: p.codigo,
       deficit,
+      stock: p.stockActual,
+      demanda: demandaMesSig,
     });
 
-    return { ...p, demandaMesSig, deficit, compraSugerida, pred };
+    return { ...p, demandaMesSig, deficit, compraSugerida, pred, conf };
   });
 
   const repuestosAComprar = ocData.filter(d => d.compraSugerida > 0);
@@ -277,6 +287,22 @@ function PrediccionPage() {
                     />
                     <p className="text-[10px] text-muted-foreground">Omitir predicciones cuya confianza sea menor a este valor.</p>
                   </div>
+                  
+                  <div className="space-y-3 pt-2 border-t">
+                    <div className="flex justify-between items-center">
+                      <Label className="text-sm font-medium text-warning">Simulador: Estacionalidad</Label>
+                      <span className="text-sm font-bold text-warning">{factorEstacionalidad.toFixed(1)}x</span>
+                    </div>
+                    <Slider
+                      value={[factorEstacionalidad * 10]}
+                      onValueChange={(v) => setFactorEstacionalidad(v[0] / 10)}
+                      min={5}
+                      max={30}
+                      step={1}
+                      className="[&_[role=slider]]:bg-warning [&_[role=slider]]:border-warning"
+                    />
+                    <p className="text-[10px] text-muted-foreground">Multiplicador global de demanda (Ej: Black Friday = 2.0x).</p>
+                  </div>
                 </div>
                 <DialogFooter className="flex items-center sm:justify-between">
                   <Button variant="ghost" size="sm" onClick={resetConfig} className="text-muted-foreground">
@@ -383,32 +409,24 @@ function PrediccionPage() {
               </CardTitle>
               <CardDescription>Clasificación automática de inventario (Stock Actual vs Predicción ML)</CardDescription>
             </CardHeader>
-            <CardContent className="h-72">
+            <CardContent className="h-[320px]">
               <ResponsiveContainer width="100%" height="100%">
-                <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
-                  <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-                  <XAxis type="number" dataKey="x" name="Stock Actual" fontSize={12} stroke="#64748b" />
-                  <YAxis type="number" dataKey="y" name="Predicción Mes" fontSize={12} stroke="#64748b" />
-                  <ZAxis type="number" dataKey="z" range={[60, 400]} />
+                <ComposedChart data={scatterData} margin={{ top: 20, right: 20, bottom: 20, left: -20 }}>
+                  <CartesianGrid strokeDasharray="3 3" opacity={0.3} vertical={false} />
+                  <XAxis dataKey="name" fontSize={10} stroke="#64748b" tickLine={false} axisLine={false} />
+                  <YAxis fontSize={10} stroke="#64748b" tickLine={false} axisLine={false} />
                   <RechartsTooltip
-                    cursor={{ strokeDasharray: '3 3' }}
-                    contentStyle={{ borderRadius: 8, fontSize: 12 }}
-                    formatter={(val: number, name: string) => [val, name]}
-                    labelFormatter={() => ""}
+                    cursor={{ fill: 'rgba(0,0,0,0.05)' }}
+                    contentStyle={{ borderRadius: 8, fontSize: 12, border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                   />
-                  {/* Línea de equilibrio (Stock = Demanda) */}
-                  <ReferenceLine x={20} stroke="red" strokeDasharray="3 3" opacity={0} />
-                  <Scatter name="Repuestos" data={scatterData} fill="#1565C0">
-                    {scatterData.map((entry, index) => (
-                      <cell key={`cell-${index}`} fill={entry.deficit > 0 ? "#dc2626" : (entry.x > entry.y * 3 ? "#0288d1" : "#10b981")} />
-                    ))}
-                  </Scatter>
-                </ScatterChart>
+                  <Legend iconType="circle" wrapperStyle={{ fontSize: '11px' }} />
+                  <Bar dataKey="stock" name="Stock Físico" fill="#10b981" radius={[4, 4, 0, 0]} maxBarSize={40} />
+                  <Area type="monotone" dataKey="demanda" name="Demanda Proyectada" fill="#ef4444" stroke="#ef4444" fillOpacity={0.2} strokeWidth={2} />
+                </ComposedChart>
               </ResponsiveContainer>
-              <div className="flex justify-center gap-6 text-xs text-muted-foreground mt-2">
-                <span className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-destructive" /> Understock (Quiebre)</span>
-                <span className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-success" /> Stock Saludable (Buffer)</span>
-                <span className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-info" /> Overstock (Baja rotación)</span>
+              <div className="flex justify-center gap-6 text-[10px] text-muted-foreground mt-1">
+                <span className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-destructive/80" /> Brecha Roja = Quiebre / Understock</span>
+                <span className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-success/80" /> Barra Verde = Stock Físico Disponible</span>
               </div>
             </CardContent>
           </Card>
@@ -523,8 +541,8 @@ function PrediccionPage() {
 
               <Dialog open={modalOCAbierto} onOpenChange={resetearModal}>
                 <DialogTrigger asChild>
-                  <Button size="sm" disabled={repuestosAComprar.length === 0}>
-                    <Server className="mr-2 h-4 w-4" /> Generar Lote a Oracle
+                  <Button size="sm" disabled={repuestosAComprar.length === 0} className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold shadow-md shadow-primary/20 hover:shadow-primary/40 transition-all">
+                    <ShoppingCart className="mr-2 h-4 w-4" /> Generar OC
                   </Button>
                 </DialogTrigger>
                 <DialogContent className="sm:max-w-[550px]">
@@ -654,7 +672,7 @@ function PrediccionPage() {
                           <TableCell className="text-right bg-primary/5">
                             <span className="font-bold text-primary">{row.demandaMesSig}</span>
                             <div className="text-[10px] text-muted-foreground">
-                              {row.pred ? `Conf: ${Math.round(row.pred.confianza * 100)}%` : 'Histórico'}
+                              {row.pred && row.conf >= confianzaMinima ? `Conf: ${Math.round(row.conf)}%` : 'Histórico'}
                             </div>
                           </TableCell>
                           
@@ -681,14 +699,17 @@ function PrediccionPage() {
               </Table>
             </div>
             
-            {/* Disclaimer para MVP */}
-            <div className="mt-4 flex items-start gap-2 p-3 bg-muted/50 rounded-lg text-xs text-muted-foreground">
-              <Server className="h-4 w-4 shrink-0 mt-0.5" />
-              <p>
-                <b>Aviso de Arquitectura Desacoplada:</b> Al sincronizar, el sistema web emite un webhook hacia la capa de integración. 
-                El servidor local (Oracle 18c XE / Visual FoxPro) debe consumir esta cola de requerimientos de forma asíncrona para no saturar 
-                la infraestructura local on-premise (RNF-01).
-              </p>
+            {/* Disclaimer Comercial SCM */}
+            <div className="mt-4 flex items-start gap-3 p-4 bg-destructive/10 rounded-lg text-sm border-l-4 border-l-destructive">
+              <AlertTriangle className="h-5 w-5 shrink-0 mt-0.5 text-destructive" />
+              <div>
+                <p className="font-bold text-destructive mb-1">Alerta Comercial Logística</p>
+                <p className="text-muted-foreground">
+                  Los repuestos en la tabla representan escenarios de <b>Déficit Inminente (Understock)</b> detectados por el modelo predictivo.
+                  Retrasar la emisión de esta Orden de Compra incrementará de forma directa los tiempos de inactividad de los vehículos en taller, 
+                  generando cuellos de botella operativos y afectando los márgenes de rentabilidad del servicio.
+                </p>
+              </div>
             </div>
           </CardContent>
         </Card>
