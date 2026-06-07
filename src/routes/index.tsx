@@ -1,5 +1,8 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState, type FormEvent } from "react";
+import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import {
   Gauge,
   ShieldCheck,
@@ -22,35 +25,48 @@ export const Route = createFileRoute("/")({
   component: LoginPage,
 });
 
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+// Definimos un esquema estricto con Zod como medida de "Defense in Depth".
+// Aunque la inyección SQL se previene en el backend (usando consultas parametrizadas o Supabase),
+// validar la longitud y el formato en el frontend evita el envío de payloads maliciosos obvios.
+const loginSchema = z.object({
+  email: z
+    .string()
+    .email({ message: "Introduce un correo electrónico válido." })
+    .max(100, { message: "El correo excede la longitud permitida." }),
+  password: z
+    .string()
+    .min(6, { message: "La contraseña debe tener al menos 6 caracteres." })
+    .max(20, { message: "La contraseña no puede exceder los 20 caracteres." })
+    .regex(/^[^;<>"']+$/, { message: "Contiene caracteres no permitidos por seguridad." }),
+});
+
+type LoginFormValues = z.infer<typeof loginSchema>;
 
 function LoginPage() {
   const navigate = useNavigate();
-
-  const [email, setEmail] = useState("");
-  const [emailError, setEmailError] = useState(false);
-  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
 
-  const validateEmail = () => {
-    const invalid = !EMAIL_REGEX.test(email);
-    setEmailError(invalid);
-    return !invalid;
-  };
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isValid },
+  } = useForm<LoginFormValues>({
+    resolver: zodResolver(loginSchema),
+    mode: "onChange",
+  });
 
-  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    if (!validateEmail()) return;
+  const onSubmit = (data: LoginFormValues) => {
+    // El backend (Supabase) se encarga de la parametrización de los datos.
+    // Los datos validados aquí están listos para ser enviados de forma segura.
+    console.log("Datos seguros listos para enviar:", data);
     void navigate({ to: "/dashboard" });
   };
 
   return (
     <div className="flex min-h-screen w-full items-center justify-center bg-slate-50 p-4">
       <div className="flex w-full max-w-5xl overflow-hidden rounded-xl shadow-lg">
-
         {/* ── Panel Izquierdo: Branding ── */}
         <div className="hidden w-1/2 flex-col justify-between bg-[#03369A] p-12 text-white lg:flex">
-
           {/* Header del panel */}
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-white/20 bg-white/10">
@@ -89,15 +105,13 @@ function LoginPage() {
 
         {/* ── Panel Derecho: Formulario ── */}
         <div className="flex w-full flex-col justify-center bg-white p-12 lg:w-1/2">
-
           {/* Cabecera del formulario */}
           <h2 className="text-2xl font-bold text-gray-900">Iniciar sesión</h2>
           <p className="mb-8 mt-1 text-sm text-gray-500">
             Ingresa con tus credenciales corporativas.
           </p>
 
-          <form onSubmit={handleSubmit} className="flex flex-col gap-4" noValidate>
-
+          <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4" noValidate>
             {/* Campo Email */}
             <div className="flex flex-col gap-1">
               <label
@@ -111,24 +125,19 @@ function LoginPage() {
                 type="email"
                 autoComplete="email"
                 placeholder="usuario@bpamotors.com"
-                value={email}
-                onChange={(e) => {
-                  setEmail(e.target.value);
-                  if (emailError) setEmailError(false);
-                }}
-                onBlur={validateEmail}
+                {...register("email")}
                 className={[
                   "h-10 w-full rounded-md border px-3 text-sm text-gray-900 outline-none",
                   "placeholder:text-gray-400 transition-colors duration-150",
                   "focus:border-[#03369A] focus:ring-2 focus:ring-[#03369A]/20",
-                  emailError
+                  errors.email
                     ? "border-red-500 focus:border-red-500 focus:ring-red-500/20"
                     : "border-gray-300",
                 ].join(" ")}
               />
-              {emailError && (
+              {errors.email && (
                 <p className="text-xs text-red-500">
-                  Introduce un correo electrónico válido.
+                  {errors.email.message}
                 </p>
               )}
             </div>
@@ -147,13 +156,15 @@ function LoginPage() {
                   type={showPassword ? "text" : "password"}
                   autoComplete="current-password"
                   placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  {...register("password")}
                   className={[
                     "h-10 w-full rounded-md border border-gray-300 px-3 pr-10",
                     "text-sm text-gray-900 outline-none placeholder:text-gray-400",
                     "transition-colors duration-150",
                     "focus:border-[#03369A] focus:ring-2 focus:ring-[#03369A]/20",
+                    errors.password
+                      ? "border-red-500 focus:border-red-500 focus:ring-red-500/20"
+                      : "border-gray-300",
                   ].join(" ")}
                 />
                 <button
@@ -172,6 +183,11 @@ function LoginPage() {
                   )}
                 </button>
               </div>
+              {errors.password && (
+                <p className="text-xs text-red-500">
+                  {errors.password.message}
+                </p>
+              )}
             </div>
 
             {/* Link ¿Olvidaste tu contraseña? */}
@@ -189,10 +205,10 @@ function LoginPage() {
             <button
               id="login-submit-btn"
               type="submit"
-              disabled={!email || !password || !EMAIL_REGEX.test(email)}
+              disabled={!isValid}
               className={[
                 "mt-6 flex h-10 w-full items-center justify-center gap-2 rounded-md text-sm font-semibold text-white transition-all duration-150",
-                (!email || !password || !EMAIL_REGEX.test(email))
+                !isValid
                   ? "bg-gray-300 cursor-not-allowed opacity-70"
                   : "bg-[#03369A] cursor-pointer hover:opacity-90 active:opacity-80",
               ].join(" ")}
