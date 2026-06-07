@@ -72,3 +72,82 @@ export const authApi = {
   logout: () =>
     apiFetch<{ message: string }>("/api/v1/auth/logout", { method: "POST" }),
 };
+
+// ── Endpoints de Órdenes de Trabajo ───────────────────────────────────────────
+
+export interface EstadoOT {
+  c_estado: string;
+  descripcion?: string;
+}
+
+export interface AutoInfo {
+  vin: string;
+  placa?: string;
+  marca?: string;
+  modelo?: string;
+  anio_mod?: number;
+  tipo_transmision?: string;
+  tipo_combustible?: string;
+}
+
+export interface WorkOrderItem {
+  n_ot: string;
+  fecha?: string;
+  km?: number;
+  rango_km?: string;
+  tipo_ot_desc?: string;
+  requerimiento?: string;
+  dias_atencion?: number;
+  estado?: EstadoOT;
+  auto?: AutoInfo;
+}
+
+export interface WorkOrderMetadata {
+  total_records: number;
+  current_page: number;
+  page_size: number;
+  total_pages: number;
+}
+
+export interface WorkOrderListResponse {
+  metadata: WorkOrderMetadata;
+  data: WorkOrderItem[];
+}
+
+export interface WorkOrderPart {
+  id: number;
+  producto_id?: string;
+  descripcion?: string;
+  marca?: string;
+  cantidad?: number;
+  precio_unitario?: number;
+  total?: number;
+  c_moneda?: string;
+}
+
+export const workOrdersApi = {
+  list: async (params: {
+    page?: number;
+    page_size?: number;
+    search?: string;
+    c_estado?: string;
+    marca?: string;
+  } = {}) => {
+    const searchParams = new URLSearchParams();
+    if (params.page) searchParams.append("page", params.page.toString());
+    if (params.page_size) searchParams.append("page_size", params.page_size.toString());
+    if (params.search) searchParams.append("search", params.search);
+    if (params.c_estado && params.c_estado !== "todos") searchParams.append("c_estado", params.c_estado);
+    if (params.marca) searchParams.append("marca", params.marca);
+
+    const query = searchParams.toString();
+    const url = `/api/v1/work-orders${query ? `?${query}` : ""}`;
+    return apiFetch<WorkOrderListResponse>(url);
+  },
+
+  parts: async (nOt: string) => {
+    // nOt is passed as OT-123, extract just the number or if it's already a number use it
+    const otNum = nOt.replace("OT-", "");
+    return apiFetch<WorkOrderPart[]>(`/api/v1/work-orders/${otNum}/parts`);
+  },
+};

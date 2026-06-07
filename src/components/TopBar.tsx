@@ -18,13 +18,6 @@ export function TopBar({ title, subtitle }: { title: string; subtitle?: string }
         )}
       </div>
       <div className="ml-auto flex items-center gap-2">
-        <div className="relative hidden md:block">
-          <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Buscar OT, repuesto, cliente…"
-            className="h-9 w-72 pl-8"
-          />
-        </div>
         <Button variant="ghost" size="icon" className="relative">
           <Bell className="h-4 w-4" />
           <Badge className="absolute -right-1 -top-1 h-4 min-w-4 px-1 text-[10px]">3</Badge>
