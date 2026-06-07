@@ -1,4 +1,4 @@
-import { Link, useRouterState } from "@tanstack/react-router";
+import { Link, useRouterState, useNavigate } from "@tanstack/react-router";
 import {
   LayoutDashboard,
   Wrench,
@@ -8,6 +8,7 @@ import {
   Brain,
   Settings,
   Gauge,
+  LogOut,
 } from "lucide-react";
 
 import {
@@ -20,7 +21,9 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarFooter,
 } from "@/components/ui/sidebar";
+import { useAuth } from "@/contexts/AuthContext";
 
 const items = [
   { title: "Dashboard Ejecutivo", url: "/dashboard", icon: LayoutDashboard },
@@ -34,6 +37,13 @@ const items = [
 
 export function AppSidebar() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const navigate = useNavigate();
+  const { user, logout } = useAuth();
+
+  const handleLogout = async () => {
+    await logout();
+    void navigate({ to: "/" });
+  };
 
   return (
     <Sidebar collapsible="icon">
@@ -73,6 +83,15 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
+      <SidebarFooter className="border-t border-sidebar-border p-4">
+        <button
+          onClick={handleLogout}
+          className="flex w-full hover:cursor-pointer items-center gap-2 rounded-md bg-red-50 px-3 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-100"
+        >
+          <LogOut className="h-4 w-4" />
+          <span>Cerrar Sesión</span>
+        </button>
+      </SidebarFooter>
     </Sidebar>
   );
 }
