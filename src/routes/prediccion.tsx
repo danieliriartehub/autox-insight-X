@@ -2,11 +2,11 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import {
   Brain, Sparkles, AlertTriangle, ShoppingCart, Zap, Target,
-  Download, Server, CheckCircle2, Settings2, RotateCcw, ArrowRight, Loader2
+  Download, Server, CheckCircle2, ArrowRight, Loader2, BarChart2
 } from "lucide-react";
 import {
   CartesianGrid, ResponsiveContainer, Tooltip as RechartsTooltip, XAxis, YAxis,
-  ComposedChart, Area, Bar, Legend,
+  BarChart, Bar, Legend,
 } from "recharts";
 
 import { TopBar } from "@/components/TopBar";
@@ -17,7 +17,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Slider } from "@/components/ui/slider";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
@@ -25,9 +27,7 @@ import {
   Dialog, DialogContent, DialogDescription, DialogFooter,
   DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
-import {
-  useTopRepuestos, useTendenciaFutura, useRepuestosMasConsumidos,
-} from "@/hooks/useData";
+import { useTopRepuestos } from "@/hooks/useData";
 import { usePredictions } from "@/hooks/usePredictions";
 import { fetchPrediction, fetchMLStatus, type PredictResponse } from "@/services/predict";
 
@@ -42,8 +42,6 @@ export const Route = createFileRoute("/prediccion")({
   }),
   component: PrediccionPage,
 });
-
-// ── Constantes ────────────────────────────────────────────────────────────────
 
 const MES_NOMBRES = [
   "", "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
@@ -63,25 +61,23 @@ function PrediccionPage() {
   const mesActual  = new Date().getMonth() + 1;
   const anioActual = new Date().getFullYear();
 
-  // ── Configuración Dinámica de IA ──────────────────────────────────────────
-  const [bufferSeguridad, setBufferSeguridad] = useState(15);
-  const [horizonteMeses, setHorizonteMeses]   = useState(1);
-  const [confianzaMinima, setConfianzaMinima] = useState(70);
-  const [factorEstacionalidad, setFactorEstacionalidad] = useState(1.0);
+  // ── Simulador de Escenarios de Negocio ────────────────────────────────────
+  // Reemplaza a los parámetros técnicos por escenarios que dan valor al negocio
+  const [escenario, setEscenario] = useState<"regular" | "campana" | "crisis">("regular");
 
-  const resetConfig = () => {
-    setBufferSeguridad(15);
-    setHorizonteMeses(1);
-    setConfianzaMinima(70);
-    setFactorEstacionalidad(1.0);
-  };
+  const factores = useMemo(() => {
+    switch (escenario) {
+      case "campana": return { demandaMulti: 1.5, stockMulti: 1.0, label: "Campaña Mantenimiento (+50% Demanda)" };
+      case "crisis":  return { demandaMulti: 1.0, stockMulti: 0.5, label: "Crisis Proveedores (-50% Stock Físico)" };
+      default:        return { demandaMulti: 1.0, stockMulti: 1.0, label: "Operación Regular" };
+    }
+  }, [escenario]);
 
   // ── Datos desde Supabase ──────────────────────────────────────────────────
-  const { data: topRepuestos,   loading: topLoading }  = useTopRepuestos();
-
+  const { data: topRepuestos, loading: topLoading } = useTopRepuestos();
   const repuestos = topRepuestos ?? [];
 
-  // ── Predicciones ML (repuestos × mes actual) ──────────────────────────────
+  // ── Predicciones ML ───────────────────────────────────────────────────────
   const codigos = useMemo(() => repuestos.map((r) => r.codigo), [repuestos]);
   const {
     data: predictions,
@@ -90,7 +86,7 @@ function PrediccionPage() {
   } = usePredictions(codigos, mesActual, anioActual);
 
   // ── Estado del modelo ML ──────────────────────────────────────────────────
-  const [mlStatus, setMLStatus]       = useState<MLStatus | null>(null);
+  const [mlStatus, setMLStatus] = useState<MLStatus | null>(null);
   const [mlStatusLoading, setMLLoading] = useState(true);
 
   useEffect(() => {
@@ -100,84 +96,61 @@ function PrediccionPage() {
       .finally(() => setMLLoading(false));
   }, []);
 
-  // ── KPIs & Health Score SCM ───────────────────────────────────────────────
+  // ── KPIs & Cálculos SCM ───────────────────────────────────────────────────
   const predValues  = Object.values(predictions);
   const avgConfianza = predValues.length
     ? predValues.reduce((s, p) => s + p.confianza, 0) / predValues.length
     : 0;
 
-  // Calculamos quiebres inminentes (Déficit > 0)
   let deficitTotal = 0;
   let itemsEnQuiebre = 0;
-  const scatterData: any[] = [];
+  const rawChartData: any[] = [];
 
   const ocData = repuestos.map((p) => {
     const pred = predictions[p.codigo];
     const conf = pred ? pred.confianza * 100 : 0;
     
-    // Si la confianza es menor a la mínima o no hay, usamos promedio histórico
-    const demandaBase = pred && conf >= confianzaMinima 
-      ? pred.cantidad_estimada 
-      : Math.round(p.demanda / 12);
+    // Demanda Base
+    const demandaBase = pred && conf >= 70 ? pred.cantidad_estimada : Math.round(p.demanda / 12);
       
-    // Ajuste por horizonte y estacionalidad (multiplicadores)
-    const demandaMesSig = Math.round(demandaBase * horizonteMeses * factorEstacionalidad);
-    const deficit = Math.max(0, demandaMesSig - p.stockActual);
+    // Aplicamos simulador de escenarios
+    const demandaMesSig = Math.round(demandaBase * factores.demandaMulti);
+    const stockSimulado = Math.round(p.stockActual * factores.stockMulti);
     
-    // Aplicamos el Buffer de Seguridad dinámico
-    const multiplicadorBuffer = 1 + (bufferSeguridad / 100);
-    const compraSugerida = deficit > 0 ? Math.ceil(deficit * multiplicadorBuffer) : 0;
+    const deficit = Math.max(0, demandaMesSig - stockSimulado);
+    const compraSugerida = deficit > 0 ? Math.ceil(deficit * 1.15) : 0; // 15% buffer fijo
 
     if (deficit > 0) {
       deficitTotal += deficit;
       itemsEnQuiebre++;
     }
 
-    scatterData.push({
-      x: p.stockActual,
-      y: demandaMesSig,
-      name: p.repuesto.split(" ")[0], // Nombre corto para el chart
+    rawChartData.push({
+      name: p.repuesto.split(" ")[0], // Nombre corto
       codigo: p.codigo,
-      deficit,
-      stock: p.stockActual,
+      stock: stockSimulado,
       demanda: demandaMesSig,
+      deficit,
     });
 
-    return { ...p, demandaMesSig, deficit, compraSugerida, pred, conf };
+    return { ...p, stockActual: stockSimulado, demandaMesSig, deficit, compraSugerida, pred, conf };
   });
 
   const repuestosAComprar = ocData.filter(d => d.compraSugerida > 0);
-
-  // Health Score (0-100)
   const healthScore = Math.max(0, Math.round(100 - (itemsEnQuiebre * 5) - ((1 - avgConfianza) * 20)));
 
-  // ── Acciones de MVP (Simulación ERP Dinámica) ─────────────────────────────
+  // Tomamos los 10 ítems con mayor demanda para el gráfico de barras
+  const chartData = rawChartData.sort((a, b) => b.demanda - a.demanda).slice(0, 10);
+
+  // ── Acciones MVP ──────────────────────────────────────────────────────────
   const [modalOCAbierto, setModalOCAbierto] = useState(false);
   const [estadoSimulacion, setEstadoSimulacion] = useState<"idle" | "enviando" | "completado">("idle");
   const [ocGeneradas, setOcGeneradas] = useState<string[]>([]);
 
-  const exportarAExcel = () => {
-    const headers = ["Codigo", "Repuesto", "Stock_Actual", "Prediccion_ML_Mes", "Deficit", "Compra_Sugerida"];
-    const rows = ocData.map((row) => 
-      `${row.codigo},"${row.repuesto}",${row.stockActual},${row.demandaMesSig},${row.deficit},${row.compraSugerida}`
-    );
-    const csvContent = "data:text/csv;charset=utf-8," + headers.join(",") + "\n" + rows.join("\n");
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `OC_Inteligente_${mesActual}_${anioActual}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    window.alert("Exportación exitosa. El archivo CSV está listo para cargarse al ERP Oracle.");
-  };
-
   const iniciarSimulacion = () => {
     setEstadoSimulacion("enviando");
     setOcGeneradas([]);
-    // Simulamos un retraso de red e inserción en base de datos legacy
     setTimeout(() => {
-      // Mock de IDs generados basados en el año
       setOcGeneradas([`OC-${anioActual}-9041`, `OC-${anioActual}-9042`]);
       setEstadoSimulacion("completado");
     }, 2500);
@@ -185,23 +158,21 @@ function PrediccionPage() {
 
   const resetearModal = (open: boolean) => {
     setModalOCAbierto(open);
-    if (!open) {
-      setTimeout(() => setEstadoSimulacion("idle"), 300);
-    }
+    if (!open) setTimeout(() => setEstadoSimulacion("idle"), 300);
   };
 
-  // ── Predictor interactivo ─────────────────────────────────────────────────
-  const [form, setForm]         = useState({ codigo: "", mes: String(mesActual), km: "50000" });
+  // ── Predictor Interactivo ─────────────────────────────────────────────────
+  const [form, setForm] = useState({ codigo: "", mes: String(mesActual), km: "50000" });
   const [predResult, setResult] = useState<PredictResponse | null>(null);
-  const [running, setRunning]   = useState(false);
+  const [running, setRunning] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
   const runPredict = async () => {
-    if (!form.codigo.trim()) { setFormError("Ingresa un código de repuesto"); return; }
+    if (!form.codigo.trim()) { setFormError("Selecciona un repuesto"); return; }
     setRunning(true); setFormError(null); setResult(null);
     try {
       const res = await fetchPrediction({
-        codigo_repuesto: form.codigo.trim(),
+        codigo_repuesto: form.codigo,
         mes: Number(form.mes),
         anio: anioActual,
         km: Number(form.km) || 50_000,
@@ -214,7 +185,6 @@ function PrediccionPage() {
     }
   };
 
-  // ── Render ────────────────────────────────────────────────────────────────
   return (
     <>
       <TopBar
@@ -225,98 +195,7 @@ function PrediccionPage() {
 
         {/* ── Banner de estado del modelo ─────────────────────────────────── */}
         <Card className="border-primary/30 bg-gradient-to-br from-primary/5 via-transparent to-transparent relative overflow-hidden">
-          {/* Botón de configuración AI superior derecho */}
-          <div className="absolute top-4 right-4 z-10">
-            <Dialog>
-              <DialogTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-9 w-9 bg-background/50 backdrop-blur border text-muted-foreground hover:text-primary hover:border-primary/50 shadow-sm transition-all">
-                  <Settings2 className="h-5 w-5" />
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-[425px]">
-                <DialogHeader>
-                  <DialogTitle className="flex items-center gap-2">
-                    <Settings2 className="h-5 w-5 text-primary" />
-                    Parámetros del Motor SCM
-                  </DialogTitle>
-                  <DialogDescription>
-                    Ajusta la sensibilidad del modelo y las reglas de negocio para la generación de compras.
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="grid gap-6 py-4">
-                  <div className="space-y-3">
-                    <div className="flex justify-between items-center">
-                      <Label className="text-sm font-medium">Buffer de Seguridad (%)</Label>
-                      <span className="text-sm font-bold text-primary">{bufferSeguridad}%</span>
-                    </div>
-                    <Slider
-                      value={[bufferSeguridad]}
-                      onValueChange={(v) => setBufferSeguridad(v[0])}
-                      max={50}
-                      step={5}
-                    />
-                    <p className="text-[10px] text-muted-foreground">Colchón adicional sobre el déficit calculado.</p>
-                  </div>
-                  
-                  <div className="space-y-3">
-                    <div className="flex justify-between items-center">
-                      <Label className="text-sm font-medium">Horizonte de Proyección</Label>
-                      <span className="text-sm font-bold text-primary">{horizonteMeses} Mes{horizonteMeses > 1 ? 'es' : ''}</span>
-                    </div>
-                    <Slider
-                      value={[horizonteMeses]}
-                      onValueChange={(v) => setHorizonteMeses(v[0])}
-                      min={1}
-                      max={3}
-                      step={1}
-                    />
-                    <p className="text-[10px] text-muted-foreground">Meses hacia el futuro que debe cubrir el stock.</p>
-                  </div>
-
-                  <div className="space-y-3">
-                    <div className="flex justify-between items-center">
-                      <Label className="text-sm font-medium">Filtro de Confianza ML (%)</Label>
-                      <span className="text-sm font-bold text-primary">{confianzaMinima}%</span>
-                    </div>
-                    <Slider
-                      value={[confianzaMinima]}
-                      onValueChange={(v) => setConfianzaMinima(v[0])}
-                      min={50}
-                      max={95}
-                      step={5}
-                    />
-                    <p className="text-[10px] text-muted-foreground">Omitir predicciones cuya confianza sea menor a este valor.</p>
-                  </div>
-                  
-                  <div className="space-y-3 pt-2 border-t">
-                    <div className="flex justify-between items-center">
-                      <Label className="text-sm font-medium text-warning">Simulador: Estacionalidad</Label>
-                      <span className="text-sm font-bold text-warning">{factorEstacionalidad.toFixed(1)}x</span>
-                    </div>
-                    <Slider
-                      value={[factorEstacionalidad * 10]}
-                      onValueChange={(v) => setFactorEstacionalidad(v[0] / 10)}
-                      min={5}
-                      max={30}
-                      step={1}
-                      className="[&_[role=slider]]:bg-warning [&_[role=slider]]:border-warning"
-                    />
-                    <p className="text-[10px] text-muted-foreground">Multiplicador global de demanda (Ej: Black Friday = 2.0x).</p>
-                  </div>
-                </div>
-                <DialogFooter className="flex items-center sm:justify-between">
-                  <Button variant="ghost" size="sm" onClick={resetConfig} className="text-muted-foreground">
-                    <RotateCcw className="mr-2 h-4 w-4" /> Restaurar defaults
-                  </Button>
-                  <Button type="submit" onClick={() => document.dispatchEvent(new KeyboardEvent('keydown', {'key': 'Escape'}))}>
-                    Aplicar Cambios
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-          </div>
-
-          <CardContent className="flex flex-wrap items-center gap-6 p-5 pr-16">
+          <CardContent className="flex flex-wrap items-center justify-between gap-6 p-5">
             <div className="flex items-center gap-3">
               <div className="rounded-xl bg-primary p-3 text-primary-foreground shadow-lg shadow-primary/20">
                 <Brain className="h-5 w-5" />
@@ -330,29 +209,20 @@ function PrediccionPage() {
             </div>
 
             <div className="flex flex-wrap gap-6 text-sm">
-              <Stat label="Repuestos conocidos"
-                value={mlStatusLoading ? "…" : String(mlStatus?.repuestos_conocidos ?? 600)} />
-              <Stat label="MAE del modelo"
-                value={mlStatusLoading ? "…" : `±${mlStatus?.mae_referencia ?? 4.33} uds`} />
-              <Stat label="Confiabilidad Media"
-                value={predLoading ? "…" : `${Math.round(avgConfianza * 100)}%`} />
+              <Stat label="Repuestos conocidos" value={mlStatusLoading ? "…" : String(mlStatus?.repuestos_conocidos ?? 600)} />
+              <Stat label="MAE del modelo" value={mlStatusLoading ? "…" : `±${mlStatus?.mae_referencia ?? 4.33} uds`} />
+              <Stat label="Confiabilidad Media" value={predLoading ? "…" : `${Math.round(avgConfianza * 100)}%`} />
             </div>
 
             <Badge
-              className={`ml-auto border ${
-                predError
-                  ? "bg-destructive/15 text-destructive border-destructive/30"
-                  : mlStatus?.modelo_cargado
-                  ? "bg-success/15 text-success hover:bg-success/15 border-success/30"
+              className={`border ${
+                predError ? "bg-destructive/15 text-destructive border-destructive/30"
+                  : mlStatus?.modelo_cargado ? "bg-success/15 text-success border-success/30"
                   : "bg-warning/15 text-warning-foreground border-warning/30"
               }`}
             >
               <Sparkles className="mr-1 h-3 w-3" />
-              {predError
-                ? "Modelo no disponible"
-                : mlStatusLoading
-                ? "Conectando…"
-                : "Modelo activo"}
+              {predError ? "Modelo no disponible" : mlStatusLoading ? "Conectando…" : "Modelo activo"}
             </Badge>
           </CardContent>
         </Card>
@@ -360,38 +230,15 @@ function PrediccionPage() {
         {/* ── KPI Row SCM ─────────────────────────────────────────────────── */}
         <section className="grid grid-cols-2 gap-4 md:grid-cols-4">
           {[
-            {
-              label: "Salud Logística (Score)",
-              value: topLoading ? null : `${healthScore}/100`,
-              sub: healthScore > 80 ? "Óptimo" : "Requiere atención",
-              color: healthScore > 80 ? "text-success" : "text-warning",
-            },
-            {
-              label: "Quiebres Inminentes",
-              value: predLoading ? null : String(itemsEnQuiebre),
-              sub: "Repuestos con Déficit (Demanda > Stock)",
-              color: itemsEnQuiebre > 0 ? "text-destructive" : "text-success",
-            },
-            {
-              label: "Volumen a Abastecer",
-              value: predLoading ? null : `${deficitTotal} uds`,
-              sub: `Para cubrir ${horizonteMeses} mes(es)`,
-              color: "text-primary",
-            },
-            {
-              label: "Días de Cobertura Promedio",
-              value: "14.5",
-              sub: "Stock actual vs Velocidad consumo ML",
-              color: "text-foreground",
-            },
+            { label: "Salud Logística (Score)", value: topLoading ? null : `${healthScore}/100`, sub: healthScore > 80 ? "Óptimo" : "Requiere atención", color: healthScore > 80 ? "text-success" : "text-warning" },
+            { label: "Quiebres Inminentes", value: predLoading ? null : String(itemsEnQuiebre), sub: "Repuestos con Déficit", color: itemsEnQuiebre > 0 ? "text-destructive" : "text-success" },
+            { label: "Volumen a Abastecer", value: predLoading ? null : `${deficitTotal} uds`, sub: "Para cubrir demanda IA", color: "text-primary" },
+            { label: "Días de Cobertura Promedio", value: "14.5", sub: "Stock vs Velocidad consumo", color: "text-foreground" },
           ].map((m) => (
             <Card key={m.label}>
               <CardContent className="p-5">
                 <div className="text-xs uppercase tracking-wider text-muted-foreground">{m.label}</div>
-                {m.value === null
-                  ? <Skeleton className="mt-2 h-8 w-20" />
-                  : <div className={`mt-1 text-3xl font-bold ${m.color}`}>{m.value}</div>
-                }
+                {m.value === null ? <Skeleton className="mt-2 h-8 w-20" /> : <div className={`mt-1 text-3xl font-bold ${m.color}`}>{m.value}</div>}
                 <div className="mt-1 text-xs text-muted-foreground">{m.sub}</div>
               </CardContent>
             </Card>
@@ -400,38 +247,45 @@ function PrediccionPage() {
 
         {/* ── Matriz SCM & Acciones ───────────────────────────────────────── */}
         <section className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-          {/* Matriz de Decisión */}
           <Card className="lg:col-span-2">
-            <CardHeader>
-              <CardTitle className="text-base flex items-center gap-2">
-                <Target className="h-4 w-4 text-primary" />
-                Matriz de Decisión SCM
-              </CardTitle>
-              <CardDescription>Clasificación automática de inventario (Stock Actual vs Predicción ML)</CardDescription>
-            </CardHeader>
-            <CardContent className="h-[320px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <ComposedChart data={scatterData} margin={{ top: 20, right: 20, bottom: 20, left: -20 }}>
-                  <CartesianGrid strokeDasharray="3 3" opacity={0.3} vertical={false} />
-                  <XAxis dataKey="name" fontSize={10} stroke="#64748b" tickLine={false} axisLine={false} />
-                  <YAxis fontSize={10} stroke="#64748b" tickLine={false} axisLine={false} />
-                  <RechartsTooltip
-                    cursor={{ fill: 'rgba(0,0,0,0.05)' }}
-                    contentStyle={{ borderRadius: 8, fontSize: 12, border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                  />
-                  <Legend iconType="circle" wrapperStyle={{ fontSize: '11px' }} />
-                  <Bar dataKey="stock" name="Stock Físico" fill="#10b981" radius={[4, 4, 0, 0]} maxBarSize={40} />
-                  <Area type="monotone" dataKey="demanda" name="Demanda Proyectada" fill="#ef4444" stroke="#ef4444" fillOpacity={0.2} strokeWidth={2} />
-                </ComposedChart>
-              </ResponsiveContainer>
-              <div className="flex justify-center gap-6 text-[10px] text-muted-foreground mt-1">
-                <span className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-destructive/80" /> Brecha Roja = Quiebre / Understock</span>
-                <span className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-success/80" /> Barra Verde = Stock Físico Disponible</span>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <div>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <BarChart2 className="h-4 w-4 text-primary" />
+                  Comparativa: Stock vs Demanda (Top 10)
+                </CardTitle>
+                <CardDescription>Visualización directa de quiebres por SKU</CardDescription>
               </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground">Escenario:</span>
+                <Select value={escenario} onValueChange={(v: any) => setEscenario(v)}>
+                  <SelectTrigger className="w-[200px] h-8 text-xs font-semibold bg-muted/50">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="regular">Operación Regular</SelectItem>
+                    <SelectItem value="campana" className="text-warning font-semibold">Campaña (+50% Demanda)</SelectItem>
+                    <SelectItem value="crisis" className="text-destructive font-semibold">Crisis (-50% Stock)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </CardHeader>
+            <CardContent className="h-[320px] pt-4">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={chartData} margin={{ top: 10, right: 10, bottom: 20, left: -20 }}>
+                  <CartesianGrid strokeDasharray="3 3" opacity={0.2} vertical={false} />
+                  <XAxis dataKey="codigo" fontSize={10} stroke="#64748b" tickLine={false} axisLine={false} />
+                  <YAxis fontSize={10} stroke="#64748b" tickLine={false} axisLine={false} />
+                  <RechartsTooltip cursor={{ fill: 'rgba(0,0,0,0.05)' }} contentStyle={{ borderRadius: 8, fontSize: 12 }} />
+                  <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />
+                  <Bar dataKey="stock" name="Stock Físico Real" fill="#10b981" radius={[4, 4, 0, 0]} maxBarSize={40} />
+                  <Bar dataKey="demanda" name="Demanda Predicha IA" fill="#ef4444" radius={[4, 4, 0, 0]} maxBarSize={40} />
+                </BarChart>
+              </ResponsiveContainer>
             </CardContent>
           </Card>
 
-          {/* Predictor interactivo (On-demand) */}
+          {/* Predictor interactivo */}
           <Card className="border-primary/20 bg-gradient-to-br from-primary/3 to-transparent">
             <CardHeader className="pb-3">
               <CardTitle className="text-base flex items-center gap-2">
@@ -440,66 +294,52 @@ function PrediccionPage() {
               </CardTitle>
               <CardDescription>Consulta el modelo bajo demanda</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-3">
-              {/* Quick-pick */}
+            <CardContent className="space-y-4">
               <div className="space-y-1.5">
-                <Label className="text-xs">Código de repuesto</Label>
-                <Input
-                  placeholder="ej. FILTRO-01"
-                  value={form.codigo}
-                  onChange={(e) => setForm({ ...form, codigo: e.target.value })}
-                  onKeyDown={(e) => e.key === "Enter" && runPredict()}
-                  className="font-mono text-sm"
-                />
-                {repuestos.length > 0 && (
-                  <div className="flex flex-wrap gap-1">
-                    {repuestos.slice(0, 3).map((r) => (
-                      <button
-                        key={r.codigo}
-                        onClick={() => setForm({ ...form, codigo: r.codigo })}
-                        className="rounded border bg-muted px-1.5 py-0.5 font-mono text-[10px] hover:border-primary/50 hover:bg-primary/5 transition-colors"
-                      >
-                        {r.codigo}
-                      </button>
+                <Label className="text-xs">Selecciona un Repuesto (SKU)</Label>
+                <Select value={form.codigo} onValueChange={(val) => setForm({ ...form, codigo: val })}>
+                  <SelectTrigger className="w-full font-mono text-xs">
+                    <SelectValue placeholder="Buscar repuesto..." />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-[220px]">
+                    {repuestos.map(r => (
+                      <SelectItem key={r.codigo} value={r.codigo} className="text-xs">
+                        <span className="font-mono font-bold">{r.codigo}</span> - {r.repuesto}
+                      </SelectItem>
                     ))}
-                  </div>
-                )}
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-1">
-                  <Label className="text-xs">Mes</Label>
-                  <select
-                    value={form.mes}
-                    onChange={(e) => setForm({ ...form, mes: e.target.value })}
-                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
-                  >
-                    {MES_NOMBRES.slice(1).map((m, i) => (
-                      <option key={i + 1} value={i + 1}>{m}</option>
-                    ))}
-                  </select>
+                  <Label className="text-xs">Mes Objetivo</Label>
+                  <Select value={form.mes} onValueChange={(val) => setForm({ ...form, mes: val })}>
+                    <SelectTrigger className="w-full text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {MES_NOMBRES.slice(1).map((m, i) => (
+                        <SelectItem key={i + 1} value={String(i + 1)}>{m}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="space-y-1">
                   <Label className="text-xs">Km vehículo</Label>
-                  <Input
-                    type="number"
-                    placeholder="50000"
-                    value={form.km}
-                    onChange={(e) => setForm({ ...form, km: e.target.value })}
-                  />
+                  <Input type="number" value={form.km} onChange={(e) => setForm({ ...form, km: e.target.value })} className="text-xs h-9" />
                 </div>
               </div>
 
               {formError && <p className="text-xs text-destructive">{formError}</p>}
-
-              <Button onClick={runPredict} disabled={running} className="w-full">
-                {running ? "Consultando…" : "Predecir demanda"}
+              <Button onClick={runPredict} disabled={running || !form.codigo} className="w-full">
+                {running ? "Consultando…" : "Proyectar Demanda"}
               </Button>
 
               {predResult && (
-                <div className="rounded-lg border border-primary/30 bg-primary/5 p-4 space-y-3 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                <div className="rounded-lg border border-primary/30 bg-primary/5 p-4 space-y-3 animate-in fade-in duration-300">
                   <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Resultado ML</span>
+                    <span className="text-[10px] font-medium uppercase text-muted-foreground">Resultado ML</span>
                     <Badge variant="outline" className={predResult.repuesto_conocido ? "bg-success/15 text-success" : "bg-warning/15 text-warning-foreground"}>
                       {predResult.repuesto_conocido ? "Conocido" : "Nuevo"}
                     </Badge>
@@ -508,13 +348,7 @@ function PrediccionPage() {
                     <span className="text-5xl font-bold text-primary leading-none">{predResult.cantidad_estimada}</span>
                     <span className="text-sm text-muted-foreground mb-1">uds / mes</span>
                   </div>
-                  <div className="space-y-1">
-                    <div className="flex justify-between text-xs text-muted-foreground">
-                      <span>Confianza</span>
-                      <span className="font-semibold">{Math.round(predResult.confianza * 100)}%</span>
-                    </div>
-                    <Progress value={predResult.confianza * 100} className="h-2" />
-                  </div>
+                  <Progress value={predResult.confianza * 100} className="h-2" />
                 </div>
               )}
             </CardContent>
@@ -530,31 +364,24 @@ function PrediccionPage() {
                 Generador de Órdenes de Compra Inteligentes
               </CardTitle>
               <CardDescription>
-                Cruzando inventario en tiempo real con proyecciones del modelo de Machine Learning
+                Cruzando inventario con predicciones ML — Escenario: <b>{factores.label}</b>
               </CardDescription>
             </div>
             
             <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" onClick={exportarAExcel}>
-                <Download className="mr-2 h-4 w-4" /> Exportar (ERP CSV)
-              </Button>
-
               <Dialog open={modalOCAbierto} onOpenChange={resetearModal}>
                 <DialogTrigger asChild>
                   <Button size="sm" disabled={repuestosAComprar.length === 0} className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold shadow-md shadow-primary/20 hover:shadow-primary/40 transition-all">
-                    <ShoppingCart className="mr-2 h-4 w-4" /> Generar OC
+                    <ShoppingCart className="mr-2 h-4 w-4" /> Generar OC Automática
                   </Button>
                 </DialogTrigger>
                 <DialogContent className="sm:max-w-[550px]">
                   <DialogHeader>
                     <DialogTitle>Aprovisionamiento Automatizado SCM</DialogTitle>
-                    <DialogDescription>
-                      Revisión de órdenes de compra sugeridas por la Inteligencia Artificial antes de enviarlas al sistema heredado (FoxPro/Oracle).
-                    </DialogDescription>
+                    <DialogDescription>Revisión de órdenes sugeridas por la IA antes de enviarlas al ERP (Oracle).</DialogDescription>
                   </DialogHeader>
 
                   <div className="py-4 space-y-4">
-                    {/* Lista resumida de lo que se va a comprar */}
                     <div className="rounded-md border bg-muted/30 p-3 max-h-[150px] overflow-y-auto">
                       <table className="w-full text-xs">
                         <thead>
@@ -585,7 +412,6 @@ function PrediccionPage() {
                       <span className="font-bold text-primary">{repuestosAComprar.reduce((s, r) => s + r.compraSugerida, 0)}</span>
                     </div>
 
-                    {/* Simulación visual */}
                     {estadoSimulacion !== "idle" && (
                       <div className="space-y-2 mt-4 p-4 border rounded-lg bg-primary/5 animate-in fade-in duration-500">
                         <div className="flex items-center justify-between text-sm">
@@ -600,14 +426,11 @@ function PrediccionPage() {
                           )}
                         </div>
                         <Progress value={estadoSimulacion === "enviando" ? 66 : 100} className="h-2 transition-all duration-1000 ease-in-out" />
-                        
                         {estadoSimulacion === "completado" && (
                           <div className="pt-2 text-sm text-muted-foreground">
                             Folios creados en ERP:
                             <div className="mt-1 flex gap-2">
-                              {ocGeneradas.map(oc => (
-                                <Badge key={oc} variant="outline" className="font-mono bg-background">{oc}</Badge>
-                              ))}
+                              {ocGeneradas.map(oc => <Badge key={oc} variant="outline" className="font-mono bg-background">{oc}</Badge>)}
                             </div>
                           </div>
                         )}
@@ -624,9 +447,7 @@ function PrediccionPage() {
                     ) : estadoSimulacion === "completado" ? (
                       <div className="w-full flex justify-end gap-2">
                          <Button variant="outline" onClick={() => resetearModal(false)}>Cerrar</Button>
-                         <Link to="/almacen">
-                           <Button><ArrowRight className="h-4 w-4 mr-2"/> Ir a Almacén</Button>
-                         </Link>
+                         <Link to="/almacen"><Button><ArrowRight className="h-4 w-4 mr-2"/> Ir a Almacén</Button></Link>
                       </div>
                     ) : (
                       <Button disabled><Loader2 className="mr-2 h-4 w-4 animate-spin"/> Procesando...</Button>
@@ -634,7 +455,6 @@ function PrediccionPage() {
                   </DialogFooter>
                 </DialogContent>
               </Dialog>
-
             </div>
           </CardHeader>
           <CardContent>
@@ -645,7 +465,7 @@ function PrediccionPage() {
                     <TableHead>Código SKU</TableHead>
                     <TableHead>Repuesto</TableHead>
                     <TableHead className="text-right">Stock Actual</TableHead>
-                    <TableHead className="text-right bg-primary/5 text-primary">Predicción ML ({horizonteMeses}m)</TableHead>
+                    <TableHead className="text-right bg-primary/5 text-primary">Predicción ML</TableHead>
                     <TableHead className="text-right">Déficit Inminente</TableHead>
                     <TableHead className="text-right text-primary font-bold">Compra Sugerida</TableHead>
                     <TableHead>Estado</TableHead>
@@ -655,43 +475,30 @@ function PrediccionPage() {
                   {topLoading || predLoading
                     ? Array.from({ length: 5 }).map((_, i) => (
                         <TableRow key={i}>
-                          {Array.from({ length: 7 }).map((__, j) => (
-                            <TableCell key={j}><Skeleton className="h-4 w-full" /></TableCell>
-                          ))}
+                          {Array.from({ length: 7 }).map((__, j) => <TableCell key={j}><Skeleton className="h-4 w-full" /></TableCell>)}
                         </TableRow>
                       ))
                     : ocData.map((row) => (
                         <TableRow key={row.codigo} className={row.deficit > 0 ? "bg-destructive/5" : ""}>
                           <TableCell className="font-mono text-xs text-muted-foreground">{row.codigo}</TableCell>
                           <TableCell className="font-medium max-w-[180px] truncate" title={row.repuesto}>{row.repuesto}</TableCell>
-                          
-                          <TableCell className="text-right font-semibold">
-                            {row.stockActual}
-                          </TableCell>
-                          
+                          <TableCell className="text-right font-semibold">{row.stockActual}</TableCell>
                           <TableCell className="text-right bg-primary/5">
                             <span className="font-bold text-primary">{row.demandaMesSig}</span>
                             <div className="text-[10px] text-muted-foreground">
-                              {row.pred && row.conf >= confianzaMinima ? `Conf: ${Math.round(row.conf)}%` : 'Histórico'}
+                              {row.pred && row.conf >= 70 ? `Conf: ${Math.round(row.conf)}%` : 'Histórico'}
                             </div>
                           </TableCell>
-                          
                           <TableCell className="text-right">
-                            {row.deficit > 0 
-                              ? <span className="font-bold text-destructive">-{row.deficit}</span>
-                              : <span className="text-muted-foreground">0</span>}
+                            {row.deficit > 0 ? <span className="font-bold text-destructive">-{row.deficit}</span> : <span className="text-muted-foreground">0</span>}
                           </TableCell>
-                          
                           <TableCell className="text-right font-bold">
-                            {row.compraSugerida > 0 
-                              ? <Badge className="bg-primary hover:bg-primary">{row.compraSugerida} uds</Badge>
-                              : <span className="text-muted-foreground">—</span>}
+                            {row.compraSugerida > 0 ? <Badge className="bg-primary">{row.compraSugerida} uds</Badge> : <span className="text-muted-foreground">—</span>}
                           </TableCell>
-                          
                           <TableCell>
                             {row.deficit > 0 
-                              ? <span className="flex items-center text-xs text-destructive font-medium"><AlertTriangle className="h-3 w-3 mr-1"/> Quiebre Riesgo</span>
-                              : <span className="flex items-center text-xs text-success font-medium"><CheckCircle2 className="h-3 w-3 mr-1"/> Stock Seguro</span>}
+                              ? <span className="flex items-center text-xs text-destructive font-medium"><AlertTriangle className="h-3 w-3 mr-1"/> Quiebre</span>
+                              : <span className="flex items-center text-xs text-success font-medium"><CheckCircle2 className="h-3 w-3 mr-1"/> Seguro</span>}
                           </TableCell>
                         </TableRow>
                       ))}
@@ -699,7 +506,6 @@ function PrediccionPage() {
               </Table>
             </div>
             
-            {/* Disclaimer Comercial SCM */}
             <div className="mt-4 flex items-start gap-3 p-4 bg-destructive/10 rounded-lg text-sm border-l-4 border-l-destructive">
               <AlertTriangle className="h-5 w-5 shrink-0 mt-0.5 text-destructive" />
               <div>
@@ -707,19 +513,16 @@ function PrediccionPage() {
                 <p className="text-muted-foreground">
                   Los repuestos en la tabla representan escenarios de <b>Déficit Inminente (Understock)</b> detectados por el modelo predictivo.
                   Retrasar la emisión de esta Orden de Compra incrementará de forma directa los tiempos de inactividad de los vehículos en taller, 
-                  generando cuellos de botella operativos y afectando los márgenes de rentabilidad del servicio.
+                  generando cuellos de botella operativos y afectando los márgenes de rentabilidad.
                 </p>
               </div>
             </div>
           </CardContent>
         </Card>
-
       </main>
     </>
   );
 }
-
-// ── Sub-componentes ───────────────────────────────────────────────────────────
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
