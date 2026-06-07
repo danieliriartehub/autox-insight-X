@@ -52,6 +52,8 @@ export interface TopRepuesto {
   demanda: number;
   recomendado: number;
   riesgo: "Bajo" | "Medio" | "Alto";
+  stockActual: number;
+  stockMinimo: number;
 }
 
 // ── helpers internos ──────────────────────────────────────────────────────────
@@ -474,11 +476,23 @@ export function useTendenciaFutura() {
  */
 export function useTopRepuestos() {
   return useQuery<TopRepuesto[]>(async () => {
-    const { data } = await supabase
-      .from("ot_repuesto")
-      .select("producto_id, descripcion, cantidad")
-      .limit(8000);
-    if (!data) return [];
+    const [otRes, stockRes] = await Promise.all([
+      supabase.from("ot_repuesto").select("producto_id, descripcion, cantidad").limit(8000),
+      supabase.from("stock").select("c_repuesto, stock, stock_minimo").limit(2000),
+    ]);
+    
+    const data = otRes.data ?? [];
+    const stockData = stockRes.data ?? [];
+
+    const stockMap: Record<string, { stock: number; min: number }> = {};
+    for (const s of stockData) {
+      if (s.c_repuesto) {
+        stockMap[s.c_repuesto] = { 
+          stock: Number(s.stock) || 0, 
+          min: Number(s.stock_minimo) || 0 
+        };
+      }
+    }
 
     const byCode: Record<string, { desc: string; total: number }> = {};
     for (const row of data) {
@@ -490,13 +504,18 @@ export function useTopRepuestos() {
 
     return Object.entries(byCode)
       .sort(([, a], [, b]) => b.total - a.total)
-      .slice(0, 7)
-      .map(([codigo, v]) => ({
-        codigo,
-        repuesto:    v.desc.slice(0, 30),
-        demanda:     Math.round(v.total),
-        recomendado: Math.round(v.total * 1.2),
-        riesgo:      v.total < 10 ? "Alto" : v.total < 50 ? "Medio" : "Bajo",
-      })) as TopRepuesto[];
+      .slice(0, 15) // Aumentamos a 15 para tener más datos en la tabla de OCs
+      .map(([codigo, v]) => {
+        const s = stockMap[codigo] ?? { stock: 0, min: 0 };
+        return {
+          codigo,
+          repuesto:    v.desc.slice(0, 30),
+          demanda:     Math.round(v.total),
+          recomendado: Math.round(v.total * 1.2),
+          riesgo:      v.total < 10 ? "Alto" : v.total < 50 ? "Medio" : "Bajo",
+          stockActual: s.stock,
+          stockMinimo: s.min,
+        };
+      }) as TopRepuesto[];
   });
 }
