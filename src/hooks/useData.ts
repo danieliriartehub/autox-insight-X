@@ -103,7 +103,8 @@ function useQuery<T>(fetcher: () => Promise<T>, deps: unknown[] = []) {
 
 function mapEstado(c: string | null | undefined): OTEstado {
   if (!c) return "Abierta";
-  if (c === "S7") return "Cerrada";
+  if (c === "S9") return "Cerrada";
+  if (["I0", "I1", "I2", "I9"].includes(c)) return "Abierta";
   if (c === "S6") return "En Proceso";
   if (c === "S5") return "Pendiente Repuesto";
   return "Abierta";
@@ -138,15 +139,15 @@ export function useKpis() {
     const [otRes, otrRes, stockRes] = await Promise.all([
       supabase.from("orden_trabajo").select("c_estado"),
       supabase.from("ot_repuesto").select("cantidad").limit(8000),
-      supabase.from("stock").select("stock, stock_minimo"),
+      supabase.from("stock").select("stock, stock_minimo").limit(5000),
     ]);
 
     const ots      = otRes.data   ?? [];
     const repuestos = otrRes.data ?? [];
     const stocks   = stockRes.data ?? [];
 
-    const otsAbiertas   = ots.filter((o) => o.c_estado !== "S7").length;
-    const otsCerradas   = ots.filter((o) => o.c_estado === "S7").length;
+    const otsAbiertas   = ots.filter((o) => ["I0", "I1", "I2", "I9"].includes(o.c_estado as string)).length;
+    const otsCerradas   = ots.filter((o) => o.c_estado === "S9").length;
     const repuestosConsumidos = Math.round(
       repuestos.reduce((s, r) => s + (Number(r.cantidad) || 0), 0)
     );
