@@ -21,7 +21,7 @@ import { Label } from "@/components/ui/label";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { useToast } from "@/hooks/use-toast";
+
 import {
   useTopRepuestos, useTendenciaFutura, useRepuestosMasConsumidos,
 } from "@/hooks/useData";
@@ -63,7 +63,6 @@ type MLStatus = {
 // ── Componente principal ──────────────────────────────────────────────────────
 
 function PrediccionPage() {
-  const { toast } = useToast();
   const mesActual  = new Date().getMonth() + 1;
   const anioActual = new Date().getFullYear();
 
@@ -148,21 +147,14 @@ function PrediccionPage() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    toast({
-      title: "Exportación exitosa",
-      description: "El archivo CSV está listo para cargarse al ERP Oracle.",
-    });
+    window.alert("Exportación exitosa. El archivo CSV está listo para cargarse al ERP Oracle.");
   };
 
   const simularEnvioERP = () => {
     setEnviandoERP(true);
     setTimeout(() => {
       setEnviandoERP(false);
-      toast({
-        title: "Sincronización simulada exitosa",
-        description: `Se han enviado ${ocData.filter(d => d.compraSugerida > 0).length} requerimientos al sistema ERP FoxPro/Oracle.`,
-        className: "bg-success text-success-foreground border-success",
-      });
+      window.alert(`Sincronización simulada exitosa. Se han enviado ${ocData.filter(d => d.compraSugerida > 0).length} requerimientos al sistema ERP FoxPro/Oracle.`);
     }, 1500);
   };
 
