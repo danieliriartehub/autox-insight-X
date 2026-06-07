@@ -146,8 +146,58 @@ export const workOrdersApi = {
   },
 
   parts: async (nOt: string) => {
-    // nOt is passed as OT-123, extract just the number or if it's already a number use it
     const otNum = nOt.replace("OT-", "");
     return apiFetch<WorkOrderPart[]>(`/api/v1/work-orders/${otNum}/parts`);
+  },
+};
+
+// ── Endpoints de Vehículos ────────────────────────────────────────────────────
+
+export interface VehicleBrandSummary {
+  marca: string;
+  modelo: string;
+  cantidad_vehiculos: number;
+}
+
+export const vehiclesApi = {
+  brandsSummary: () =>
+    apiFetch<VehicleBrandSummary[]>("/api/v1/vehicles/brands-summary"),
+};
+
+// ── Endpoints de Repuestos ────────────────────────────────────────────────────
+
+export interface PartItem {
+  c_repuesto: string;
+  descripcion?: string;
+  marca?: string;
+}
+
+export interface PartMetadata {
+  total_records: number;
+  current_page: number;
+  page_size: number;
+  total_pages: number;
+}
+
+export interface PartListResponse {
+  metadata: {
+    total_records: number;
+    current_page: number;
+    page_size: number;
+    total_pages: number;
+  };
+  data: PartItem[];
+}
+
+export const partsApi = {
+  list: async (params: { page?: number; page_size?: number; search?: string } = {}) => {
+    const searchParams = new URLSearchParams();
+    if (params.page) searchParams.append("page", params.page.toString());
+    if (params.page_size) searchParams.append("page_size", params.page_size.toString());
+    if (params.search) searchParams.append("search", params.search);
+
+    const query = searchParams.toString();
+    const url = `/api/v1/parts${query ? `?${query}` : ""}`;
+    return apiFetch<PartListResponse>(url);
   },
 };
