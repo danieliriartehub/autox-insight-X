@@ -151,8 +151,9 @@ export function useKpis() {
     const repuestosConsumidos = Math.round(
       repuestos.reduce((s, r) => s + (Number(r.cantidad) || 0), 0)
     );
-    const inventarioDisponible = Math.round(
-      stocks.reduce((s, st) => s + (Number(st.stock) || 0), 0)
+    const inventarioDisponible = stocks.reduce(
+      (s, st) => s + Math.round(Number(st.stock) || 0), 
+      0
     );
     const quiebresStock = stocks.filter(
       (st) => Number(st.stock) < Number(st.stock_minimo)
