@@ -324,7 +324,7 @@ export function useInventario() {
     const { data } = await supabase
       .from("stock")
       .select("c_repuesto, stock, stock_minimo, stock_maximo, repuesto(descripcion, marca)")
-      .limit(500);
+      .limit(5000);
     if (!data) return [];
 
     return data
