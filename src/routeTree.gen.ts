@@ -15,7 +15,6 @@ import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as CatalogoRouteImport } from './routes/catalogo'
 import { Route as AnalyticsRouteImport } from './routes/analytics'
 import { Route as AlmacenRouteImport } from './routes/almacen'
-import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
 
 const TallerRoute = TallerRouteImport.update({
@@ -48,11 +47,6 @@ const AlmacenRoute = AlmacenRouteImport.update({
   path: '/almacen',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AdminRoute = AdminRouteImport.update({
-  id: '/admin',
-  path: '/admin',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -61,7 +55,6 @@ const IndexRoute = IndexRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/admin': typeof AdminRoute
   '/almacen': typeof AlmacenRoute
   '/analytics': typeof AnalyticsRoute
   '/catalogo': typeof CatalogoRoute
@@ -71,7 +64,6 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/admin': typeof AdminRoute
   '/almacen': typeof AlmacenRoute
   '/analytics': typeof AnalyticsRoute
   '/catalogo': typeof CatalogoRoute
@@ -82,7 +74,6 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/admin': typeof AdminRoute
   '/almacen': typeof AlmacenRoute
   '/analytics': typeof AnalyticsRoute
   '/catalogo': typeof CatalogoRoute
@@ -94,7 +85,6 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
-    | '/admin'
     | '/almacen'
     | '/analytics'
     | '/catalogo'
@@ -104,7 +94,6 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/admin'
     | '/almacen'
     | '/analytics'
     | '/catalogo'
@@ -114,7 +103,6 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
-    | '/admin'
     | '/almacen'
     | '/analytics'
     | '/catalogo'
@@ -125,7 +113,6 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  AdminRoute: typeof AdminRoute
   AlmacenRoute: typeof AlmacenRoute
   AnalyticsRoute: typeof AnalyticsRoute
   CatalogoRoute: typeof CatalogoRoute
@@ -178,13 +165,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AlmacenRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/admin': {
-      id: '/admin'
-      path: '/admin'
-      fullPath: '/admin'
-      preLoaderRoute: typeof AdminRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/': {
       id: '/'
       path: '/'
@@ -197,7 +177,6 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  AdminRoute: AdminRoute,
   AlmacenRoute: AlmacenRoute,
   AnalyticsRoute: AnalyticsRoute,
   CatalogoRoute: CatalogoRoute,

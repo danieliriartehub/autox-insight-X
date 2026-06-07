@@ -6,7 +6,6 @@ import {
   BookOpen,
   BarChart3,
   Brain,
-  Settings,
   Gauge,
   LogOut,
 } from "lucide-react";
@@ -32,7 +31,6 @@ const items = [
   { title: "Catálogo Maestro", url: "/catalogo", icon: BookOpen },
   { title: "Analytics", url: "/analytics", icon: BarChart3 },
   { title: "IA Predictiva", url: "/prediccion", icon: Brain },
-  { title: "Administración", url: "/admin", icon: Settings },
 ];
 
 export function AppSidebar() {

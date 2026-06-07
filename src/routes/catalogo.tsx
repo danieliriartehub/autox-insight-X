@@ -21,7 +21,7 @@ export const Route = createFileRoute("/catalogo")({
   head: () => ({
     meta: [
       { title: "Catálogo Maestro | bpA Motors SCM" },
-      { name: "description", content: "Maestros de vehículos, repuestos, fallas y servicios." },
+      { name: "description", content: "Maestros de vehículos y repuestos." },
     ],
   }),
   component: CatalogoPage,
@@ -120,7 +120,7 @@ function CatalogoPage() {
 
   return (
     <>
-      <TopBar title="Catálogo Maestro" subtitle="Vehículos, repuestos, fallas y servicios" />
+      <TopBar title="Catálogo Maestro" subtitle="Vehículos y repuestos" />
       <main className="flex-1 space-y-6 p-6">
         <Tabs defaultValue="veh" className="h-full">
           <TabsList>
