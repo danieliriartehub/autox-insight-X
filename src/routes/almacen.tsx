@@ -85,7 +85,6 @@ function AlmacenPage() {
         <Tabs defaultValue="inv">
           <TabsList>
             <TabsTrigger value="inv">Inventario</TabsTrigger>
-            <TabsTrigger value="mov">Movimientos</TabsTrigger>
             <TabsTrigger value="alt">Alertas</TabsTrigger>
           </TabsList>
 
@@ -157,53 +156,6 @@ function AlmacenPage() {
                                   <span className="text-xs text-muted-foreground">—</span>
                                 )}
                               </TableCell>
-                            </TableRow>
-                          ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="mov" className="mt-4">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Movimientos recientes</CardTitle>
-                <CardDescription>Entradas desde órdenes de compra</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="rounded-lg border">
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="bg-muted/40">
-                        <TableHead>Fecha</TableHead>
-                        <TableHead>Tipo</TableHead>
-                        <TableHead>Código repuesto</TableHead>
-                        <TableHead className="text-right">Cantidad</TableHead>
-                        <TableHead>Referencia</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {movLoading
-                        ? Array.from({ length: 5 }).map((_, i) => (
-                            <TableRow key={i}>
-                              {Array.from({ length: 5 }).map((__, j) => (
-                                <TableCell key={j}><Skeleton className="h-4 w-full" /></TableCell>
-                              ))}
-                            </TableRow>
-                          ))
-                        : movimientos.map((m, i) => (
-                            <TableRow key={i}>
-                              <TableCell>{m.fecha}</TableCell>
-                              <TableCell>
-                                <span className="inline-flex items-center gap-1 text-success">
-                                  <ArrowDownToLine className="h-3.5 w-3.5" /> Entrada
-                                </span>
-                              </TableCell>
-                              <TableCell className="font-mono text-xs">{m.codigo}</TableCell>
-                              <TableCell className="text-right font-semibold">{m.cant}</TableCell>
-                              <TableCell className="text-muted-foreground">{m.ref}</TableCell>
                             </TableRow>
                           ))}
                     </TableBody>
