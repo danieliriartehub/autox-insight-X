@@ -1,4 +1,5 @@
-const API_BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? "http://localhost:8000";
+const API_BASE = (import.meta.env.VITE_API_URL as string | undefined)
+  ?? "https://autox-insight-backend-production.up.railway.app";
 
 // ── Request / Response types ────────────────────────────────────────────────
 
