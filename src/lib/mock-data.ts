@@ -150,11 +150,3 @@ export const tendenciaFutura = [
   { mes: "Nov", actual: null, prediccion: 2040 },
   { mes: "Dic", actual: null, prediccion: 2180 },
 ];
-
-export const usuarios = [
-  { id: 1, nombre: "Carlos Mendoza", email: "cmendoza@bpamotors.com", rol: "Administrador", activo: true },
-  { id: 2, nombre: "Lucía Vega", email: "lvega@bpamotors.com", rol: "Jefe de Taller", activo: true },
-  { id: 3, nombre: "Miguel Torres", email: "mtorres@bpamotors.com", rol: "Jefe de Almacén", activo: true },
-  { id: 4, nombre: "Ana Castillo", email: "acastillo@bpamotors.com", rol: "Jefe de Taller", activo: true },
-  { id: 5, nombre: "Roberto Díaz", email: "rdiaz@bpamotors.com", rol: "Jefe de Almacén", activo: false },
-];
