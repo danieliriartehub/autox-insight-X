@@ -156,7 +156,12 @@ function LoginPage() {
                   type={showPassword ? "text" : "password"}
                   autoComplete="current-password"
                   placeholder="••••••••"
-                  {...register("password")}
+                  maxLength={20}
+                  {...register("password", {
+                    onChange: (e) => {
+                      e.target.value = e.target.value.replace(/[;<>"']/g, "");
+                    }
+                  })}
                   className={[
                     "h-10 w-full rounded-md border border-gray-300 px-3 pr-10",
                     "text-sm text-gray-900 outline-none placeholder:text-gray-400",
