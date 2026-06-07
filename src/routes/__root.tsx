@@ -4,13 +4,16 @@ import {
   createRootRouteWithContext,
   useRouter,
   useRouterState,
+  Navigate,
 } from "@tanstack/react-router";
 import { useEffect } from "react";
+import { Loader2 } from "lucide-react";
 
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { Toaster } from "@/components/ui/sonner";
+import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 
 function NotFoundComponent() {
   return (
@@ -70,16 +73,43 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
-  const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const isPublic = pathname === "/";
 
   return (
     <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <AuthGuard />
+      </AuthProvider>
+    </QueryClientProvider>
+  );
+}
+
+function AuthGuard() {
+  const { isLoading, isAuthenticated } = useAuth();
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const isPublic = pathname === "/";
+
+  if (isLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-slate-50">
+        <Loader2 className="h-8 w-8 animate-spin text-[#03369A]" />
+      </div>
+    );
+  }
+
+  // Redirigir a login si no está autenticado y trata de acceder a rutas privadas
+  if (!isAuthenticated && !isPublic) {
+    return <Navigate to="/" />;
+  }
+
+  // Redirigir a dashboard si ya está autenticado y trata de acceder al login
+  if (isAuthenticated && isPublic) {
+    return <Navigate to="/dashboard" />;
+  }
+
+  return (
+    <>
       {isPublic ? (
-        <>
-          <Outlet />
-          <Toaster />
-        </>
+        <Outlet />
       ) : (
         <SidebarProvider>
           <div className="flex min-h-screen w-full bg-background">
@@ -88,9 +118,9 @@ function RootComponent() {
               <Outlet />
             </SidebarInset>
           </div>
-          <Toaster />
         </SidebarProvider>
       )}
-    </QueryClientProvider>
+      <Toaster />
+    </>
   );
 }

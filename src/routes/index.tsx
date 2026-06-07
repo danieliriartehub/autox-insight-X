@@ -9,7 +9,9 @@ import {
   Eye,
   EyeOff,
   LogIn,
+  AlertCircle,
 } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -44,7 +46,9 @@ type LoginFormValues = z.infer<typeof loginSchema>;
 
 function LoginPage() {
   const navigate = useNavigate();
+  const { login, loginError } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const {
     register,
@@ -55,11 +59,16 @@ function LoginPage() {
     mode: "onChange",
   });
 
-  const onSubmit = (data: LoginFormValues) => {
-    // El backend (Supabase) se encarga de la parametrización de los datos.
-    // Los datos validados aquí están listos para ser enviados de forma segura.
-    console.log("Datos seguros listos para enviar:", data);
-    void navigate({ to: "/dashboard" });
+  const onSubmit = async (data: LoginFormValues) => {
+    setIsSubmitting(true);
+    try {
+      await login(data.email, data.password);
+      void navigate({ to: "/dashboard" });
+    } catch (err) {
+      // Error handled by AuthContext (loginError)
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -195,6 +204,14 @@ function LoginPage() {
               )}
             </div>
 
+            {/* Mensaje de Error de Autenticación */}
+            {loginError && (
+              <div className="flex items-center gap-2 rounded-md bg-red-50 p-3 text-sm text-red-600">
+                <AlertCircle className="h-4 w-4" />
+                <p>{loginError}</p>
+              </div>
+            )}
+
             {/* Link ¿Olvidaste tu contraseña? */}
             <div className="flex justify-end">
               <a
@@ -210,16 +227,16 @@ function LoginPage() {
             <button
               id="login-submit-btn"
               type="submit"
-              disabled={!isValid}
+              disabled={!isValid || isSubmitting}
               className={[
                 "mt-6 flex h-10 w-full items-center justify-center gap-2 rounded-md text-sm font-semibold text-white transition-all duration-150",
-                !isValid
+                !isValid || isSubmitting
                   ? "bg-gray-300 cursor-not-allowed opacity-70"
                   : "bg-[#03369A] cursor-pointer hover:opacity-90 active:opacity-80",
               ].join(" ")}
             >
               <LogIn className="h-4 w-4" />
-              Entrar
+              {isSubmitting ? "Autenticando..." : "Entrar"}
             </button>
           </form>
         </div>
