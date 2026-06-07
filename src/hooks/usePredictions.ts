@@ -3,16 +3,21 @@ import { fetchPrediction, type PredictResponse } from "@/services/predict";
 
 export type PredictMap = Record<string, PredictResponse>;
 
+/**
+ * Llama al backend Railway /api/v1/ml/predict para cada código de repuesto.
+ * Los codigos deben ser los producto_id reales de Supabase (ot_repuesto.producto_id).
+ */
 export function usePredictions(
   codigos: string[],
-  mes = new Date().getMonth() + 1,
-  km = 50_000,
+  mes  = new Date().getMonth() + 1,
+  anio = new Date().getFullYear(),
+  km   = 50_000,
 ) {
-  const [data, setData] = useState<PredictMap>({});
+  const [data,    setData]    = useState<PredictMap>({});
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error,   setError]   = useState<string | null>(null);
 
-  // Stable key — avoids re-fetching on every render
+  // Stable key — evita re-fetch en cada render
   const key = codigos.slice().sort().join(",");
 
   useEffect(() => {
@@ -22,12 +27,17 @@ export function usePredictions(
     setError(null);
 
     Promise.all(
-      codigos.map((c) => fetchPrediction({ codigo_repuesto: c, mes, km })),
+      codigos.map((c) =>
+        fetchPrediction({ codigo_repuesto: c, mes, anio, km })
+          .catch(() => null) // si falla un repuesto individual, no rompe el resto
+      ),
     )
       .then((results) => {
         if (cancelled) return;
         const map: PredictMap = {};
-        results.forEach((r) => { map[r.codigo_repuesto] = r; });
+        results.forEach((r) => {
+          if (r) map[r.codigo_repuesto] = r;
+        });
         setData(map);
       })
       .catch((e: Error) => {
@@ -39,7 +49,7 @@ export function usePredictions(
 
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key, mes, km]);
+  }, [key, mes, anio, km]);
 
   return { data, loading, error };
 }
