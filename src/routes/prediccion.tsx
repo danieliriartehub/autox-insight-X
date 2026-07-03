@@ -1,8 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import {
-  Brain, Sparkles, AlertTriangle, ShoppingCart, Zap, Target,
-  Download, Server, CheckCircle2, ArrowRight, Loader2, BarChart2
+  Brain, Sparkles, AlertTriangle, ShoppingCart, Zap,
+  CheckCircle2, ArrowRight, Loader2, BarChart2,
+  RefreshCw, ShieldCheck, ShieldAlert,
 } from "lucide-react";
 import {
   CartesianGrid, ResponsiveContainer, Tooltip as RechartsTooltip, XAxis, YAxis,
@@ -29,7 +30,10 @@ import {
 } from "@/components/ui/dialog";
 import { useTopRepuestos } from "@/hooks/useData";
 import { usePredictions } from "@/hooks/usePredictions";
-import { fetchPrediction, fetchMLStatus, type PredictResponse } from "@/services/predict";
+import {
+  fetchPrediction, fetchMLStatus, retrainModel, generatePurchaseOrder,
+  type PredictResponse, type MLStatusResponse, type RetrainResponse,
+} from "@/services/predict";
 
 // ── Ruta ──────────────────────────────────────────────────────────────────────
 
@@ -48,12 +52,7 @@ const MES_NOMBRES = [
   "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
 ];
 
-type MLStatus = {
-  modelo_cargado: boolean;
-  version: string | null;
-  repuestos_conocidos: number | null;
-  mae_referencia: number;
-};
+type MLStatus = MLStatusResponse;
 
 // ── Componente principal ──────────────────────────────────────────────────────
 
@@ -89,12 +88,35 @@ function PrediccionPage() {
   const [mlStatus, setMLStatus] = useState<MLStatus | null>(null);
   const [mlStatusLoading, setMLLoading] = useState(true);
 
-  useEffect(() => {
+  const cargarStatus = () => {
+    setMLLoading(true);
     fetchMLStatus()
       .then(setMLStatus)
       .catch(() => setMLStatus(null))
       .finally(() => setMLLoading(false));
-  }, []);
+  };
+
+  useEffect(() => { cargarStatus(); }, []);
+
+  // ── Reentrenamiento del modelo (RF-15) ────────────────────────────────────
+  const [retraining, setRetraining] = useState(false);
+  const [retrainResult, setRetrainResult] = useState<RetrainResponse | null>(null);
+  const [retrainError, setRetrainError] = useState<string | null>(null);
+
+  const ejecutarReentrenamiento = async () => {
+    setRetraining(true);
+    setRetrainResult(null);
+    setRetrainError(null);
+    try {
+      const res = await retrainModel({ correr_etl: false });
+      setRetrainResult(res);
+      cargarStatus(); // refresca métricas tras el hot-reload
+    } catch (e) {
+      setRetrainError(e instanceof Error ? e.message : "Error al reentrenar el modelo");
+    } finally {
+      setRetraining(false);
+    }
+  };
 
   // ── KPIs & Cálculos SCM ───────────────────────────────────────────────────
   const predValues  = Object.values(predictions);
@@ -142,23 +164,37 @@ function PrediccionPage() {
   // Tomamos los 10 ítems con mayor demanda para el gráfico de barras
   const chartData = rawChartData.sort((a, b) => b.demanda - a.demanda).slice(0, 10);
 
-  // ── Acciones MVP ──────────────────────────────────────────────────────────
+  // ── Generación REAL de Órdenes de Compra Inteligentes (RF-12) ─────────────
   const [modalOCAbierto, setModalOCAbierto] = useState(false);
-  const [estadoSimulacion, setEstadoSimulacion] = useState<"idle" | "enviando" | "completado">("idle");
+  const [estadoSimulacion, setEstadoSimulacion] = useState<"idle" | "enviando" | "completado" | "error">("idle");
   const [ocGeneradas, setOcGeneradas] = useState<string[]>([]);
+  const [ocError, setOcError] = useState<string | null>(null);
 
-  const iniciarSimulacion = () => {
+  const iniciarSimulacion = async () => {
     setEstadoSimulacion("enviando");
     setOcGeneradas([]);
-    setTimeout(() => {
-      setOcGeneradas([`OC-${anioActual}-9041`, `OC-${anioActual}-9042`]);
+    setOcError(null);
+    try {
+      // Persiste la OC real en orden_compra_detalle vía el backend (origen: IA).
+      const items = repuestosAComprar.map((r) => ({
+        codigo_repuesto: r.codigo,
+        compra_sugerida: r.compraSugerida,
+      }));
+      const res = await generatePurchaseOrder(
+        items,
+        `OC generada por IA (XGBoost) — escenario ${factores.label}`,
+      );
+      setOcGeneradas([res.n_oc]);
       setEstadoSimulacion("completado");
-    }, 2500);
+    } catch (e) {
+      setOcError(e instanceof Error ? e.message : "No se pudo generar la OC.");
+      setEstadoSimulacion("error");
+    }
   };
 
   const resetearModal = (open: boolean) => {
     setModalOCAbierto(open);
-    if (!open) setTimeout(() => setEstadoSimulacion("idle"), 300);
+    if (!open) setTimeout(() => { setEstadoSimulacion("idle"); setOcError(null); }, 300);
   };
 
   // ── Predictor Interactivo ─────────────────────────────────────────────────
@@ -193,7 +229,7 @@ function PrediccionPage() {
       />
       <main className="flex-1 space-y-6 p-6">
 
-        {/* ── Banner de estado del modelo ─────────────────────────────────── */}
+        {/* ── Banner de estado del modelo IA (RF-11) ──────────────────────── */}
         <Card className="border-primary/30 bg-gradient-to-br from-primary/5 via-transparent to-transparent relative overflow-hidden">
           <CardContent className="flex flex-wrap items-center justify-between gap-6 p-5">
             <div className="flex items-center gap-3">
@@ -201,30 +237,61 @@ function PrediccionPage() {
                 <Brain className="h-5 w-5" />
               </div>
               <div>
-                <div className="text-sm font-semibold">XGBoost Demand Forecaster</div>
+                <div className="text-sm font-semibold flex items-center gap-2">
+                  {mlStatus?.algoritmo ?? "XGBoost Regressor"} · {mlStatus?.modelo ?? "demand-forecast"}
+                  <Badge variant="outline" className="text-[10px] font-mono">v{mlStatus?.version ?? "3.0"}</Badge>
+                </div>
                 <div className="text-xs text-muted-foreground">
-                  7,645 transacciones reales · 600 repuestos · 2019–2026
+                  {mlStatus?.repuestos_conocidos ?? 600} repuestos conocidos
+                  {mlStatus?.entrenado_en && ` · entrenado ${new Date(mlStatus.entrenado_en).toLocaleDateString("es-PE")}`}
                 </div>
               </div>
             </div>
 
             <div className="flex flex-wrap gap-6 text-sm">
-              <Stat label="Repuestos conocidos" value={mlStatusLoading ? "…" : String(mlStatus?.repuestos_conocidos ?? 600)} />
-              <Stat label="MAE del modelo" value={mlStatusLoading ? "…" : `±${mlStatus?.mae_referencia ?? 4.33} uds`} />
-              <Stat label="Confiabilidad Media" value={predLoading ? "…" : `${Math.round(avgConfianza * 100)}%`} />
+              <Stat label="wMAPE (error ponderado)" value={mlStatusLoading ? "…" : mlStatus?.metrics?.wmape != null ? `${mlStatus.metrics.wmape}%` : "—"} />
+              <Stat label="MAPE alta rotación" value={mlStatusLoading ? "…" : mlStatus?.metrics?.mape_alta_rotacion != null ? `${mlStatus.metrics.mape_alta_rotacion}%` : "—"} />
+              <Stat label="MAE del modelo" value={mlStatusLoading ? "…" : mlStatus?.metrics?.mae != null ? `±${mlStatus.metrics.mae} uds` : "—"} />
+              <Stat label="Confiabilidad media" value={predLoading ? "…" : `${Math.round(avgConfianza * 100)}%`} />
             </div>
 
-            <Badge
-              className={`border ${
-                predError ? "bg-destructive/15 text-destructive border-destructive/30"
-                  : mlStatus?.modelo_cargado ? "bg-success/15 text-success border-success/30"
-                  : "bg-warning/15 text-warning-foreground border-warning/30"
-              }`}
-            >
-              <Sparkles className="mr-1 h-3 w-3" />
-              {predError ? "Modelo no disponible" : mlStatusLoading ? "Conectando…" : "Modelo activo"}
-            </Badge>
+            <div className="flex items-center gap-2">
+              <Badge
+                className={`border ${
+                  predError ? "bg-destructive/15 text-destructive border-destructive/30"
+                    : mlStatus?.modelo_cargado ? "bg-success/15 text-success border-success/30"
+                    : "bg-warning/15 text-warning-foreground border-warning/30"
+                }`}
+              >
+                <Sparkles className="mr-1 h-3 w-3" />
+                {predError ? "Modelo no disponible" : mlStatusLoading ? "Conectando…" : "Modelo activo"}
+              </Badge>
+
+              {/* Reentrenamiento del modelo con gate de calidad (RF-15) */}
+              <Button
+                size="sm" variant="outline"
+                onClick={ejecutarReentrenamiento}
+                disabled={retraining}
+                className="border-primary/40 text-primary hover:bg-primary/10"
+                title="Reentrena el modelo y solo lo promueve si pasa el gate de calidad (wMAPE)"
+              >
+                <RefreshCw className={`mr-2 h-3.5 w-3.5 ${retraining ? "animate-spin" : ""}`} />
+                {retraining ? "Reentrenando…" : "Reentrenar IA"}
+              </Button>
+            </div>
           </CardContent>
+
+          {/* Resultado del reentrenamiento (RF-15 + RNF-02) */}
+          {(retrainResult || retrainError) && (
+            <div className={`border-t px-5 py-3 text-xs flex items-center gap-2 ${
+              retrainError ? "bg-destructive/10 text-destructive"
+                : retrainResult?.promovido ? "bg-success/10 text-success"
+                : "bg-warning/10 text-warning-foreground"
+            }`}>
+              {retrainError ? <ShieldAlert className="h-4 w-4" /> : retrainResult?.promovido ? <ShieldCheck className="h-4 w-4" /> : <AlertTriangle className="h-4 w-4" />}
+              <span>{retrainError ?? retrainResult?.mensaje}</span>
+            </div>
+          )}
         </Card>
 
         {/* ── KPI Row SCM ─────────────────────────────────────────────────── */}
@@ -339,16 +406,31 @@ function PrediccionPage() {
               {predResult && (
                 <div className="rounded-lg border border-primary/30 bg-primary/5 p-4 space-y-3 animate-in fade-in duration-300">
                   <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-medium uppercase text-muted-foreground">Resultado ML</span>
-                    <Badge variant="outline" className={predResult.repuesto_conocido ? "bg-success/15 text-success" : "bg-warning/15 text-warning-foreground"}>
-                      {predResult.repuesto_conocido ? "Conocido" : "Nuevo"}
+                    <span className="text-[10px] font-medium uppercase text-muted-foreground">Resultado del motor IA</span>
+                    {/* Etiqueta de confiabilidad REAL calculada por el backend (RF-10) */}
+                    <Badge variant="outline" className={
+                      predResult.alta_confiabilidad ? "bg-success/15 text-success border-success/30"
+                        : predResult.confianza >= 0.6 ? "bg-warning/15 text-warning-foreground border-warning/30"
+                        : "bg-destructive/15 text-destructive border-destructive/30"
+                    }>
+                      {predResult.alta_confiabilidad ? <ShieldCheck className="mr-1 h-3 w-3" /> : <ShieldAlert className="mr-1 h-3 w-3" />}
+                      {predResult.etiqueta_confianza}
                     </Badge>
                   </div>
                   <div className="flex items-end gap-2">
                     <span className="text-5xl font-bold text-primary leading-none">{predResult.cantidad_estimada}</span>
                     <span className="text-sm text-muted-foreground mb-1">uds / mes</span>
                   </div>
-                  <Progress value={predResult.confianza * 100} className="h-2" />
+                  <div>
+                    <div className="flex justify-between text-[10px] text-muted-foreground mb-1">
+                      <span>Confianza: <b className="text-foreground">{Math.round(predResult.confianza * 100)}%</b></span>
+                      <span>{predResult.observaciones_historicas} meses de historia</span>
+                    </div>
+                    <Progress value={predResult.confianza * 100} className="h-2" />
+                  </div>
+                  <p className="text-[11px] leading-snug text-muted-foreground border-t border-primary/10 pt-2">
+                    {predResult.explicacion}
+                  </p>
                 </div>
               )}
             </CardContent>
@@ -417,22 +499,31 @@ function PrediccionPage() {
                         <div className="flex items-center justify-between text-sm">
                           {estadoSimulacion === "enviando" ? (
                             <span className="flex items-center text-primary font-medium">
-                              <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Transmitiendo vía Webhook...
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Persistiendo OC en la base de datos...
+                            </span>
+                          ) : estadoSimulacion === "error" ? (
+                            <span className="flex items-center text-destructive font-bold">
+                              <ShieldAlert className="h-4 w-4 mr-2" /> No se pudo generar la OC
                             </span>
                           ) : (
                             <span className="flex items-center text-success font-bold">
-                              <CheckCircle2 className="h-4 w-4 mr-2" /> Órdenes Generadas Exitosamente
+                              <CheckCircle2 className="h-4 w-4 mr-2" /> Orden de Compra Generada
                             </span>
                           )}
                         </div>
-                        <Progress value={estadoSimulacion === "enviando" ? 66 : 100} className="h-2 transition-all duration-1000 ease-in-out" />
+                        {estadoSimulacion !== "error" && (
+                          <Progress value={estadoSimulacion === "enviando" ? 66 : 100} className="h-2 transition-all duration-1000 ease-in-out" />
+                        )}
                         {estadoSimulacion === "completado" && (
                           <div className="pt-2 text-sm text-muted-foreground">
-                            Folios creados en ERP:
-                            <div className="mt-1 flex gap-2">
+                            Folio persistido en <span className="font-mono">orden_compra_detalle</span> (origen: IA):
+                            <div className="mt-1 flex gap-2 flex-wrap">
                               {ocGeneradas.map(oc => <Badge key={oc} variant="outline" className="font-mono bg-background">{oc}</Badge>)}
                             </div>
                           </div>
+                        )}
+                        {estadoSimulacion === "error" && ocError && (
+                          <p className="pt-1 text-xs text-destructive">{ocError}</p>
                         )}
                       </div>
                     )}
@@ -441,13 +532,20 @@ function PrediccionPage() {
                   <DialogFooter className="flex items-center sm:justify-between">
                     {estadoSimulacion === "idle" ? (
                       <>
-                        <p className="text-xs text-muted-foreground w-full">Las OCs se enviarán de forma asíncrona.</p>
-                        <Button onClick={iniciarSimulacion}>Confirmar e Insertar</Button>
+                        <p className="text-xs text-muted-foreground w-full">
+                          La OC se registrará en <span className="font-mono">orden_compra_detalle</span> marcada como origen IA.
+                        </p>
+                        <Button onClick={iniciarSimulacion}>Confirmar y Generar OC</Button>
                       </>
                     ) : estadoSimulacion === "completado" ? (
                       <div className="w-full flex justify-end gap-2">
                          <Button variant="outline" onClick={() => resetearModal(false)}>Cerrar</Button>
                          <Link to="/almacen"><Button><ArrowRight className="h-4 w-4 mr-2"/> Ir a Almacén</Button></Link>
+                      </div>
+                    ) : estadoSimulacion === "error" ? (
+                      <div className="w-full flex justify-end gap-2">
+                         <Button variant="outline" onClick={() => resetearModal(false)}>Cerrar</Button>
+                         <Button onClick={iniciarSimulacion}><RefreshCw className="h-4 w-4 mr-2"/> Reintentar</Button>
                       </div>
                     ) : (
                       <Button disabled><Loader2 className="mr-2 h-4 w-4 animate-spin"/> Procesando...</Button>
