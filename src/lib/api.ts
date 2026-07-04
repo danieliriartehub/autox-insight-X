@@ -21,10 +21,7 @@ export interface LoginResponse {
   user: UserPublic;
 }
 
-async function apiFetch<T>(
-  path: string,
-  options: RequestInit = {},
-): Promise<T> {
+async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...options,
     credentials: "include", // ← siempre envía las cookies HttpOnly
@@ -69,8 +66,7 @@ export const authApi = {
   me: () => apiFetch<UserPublic>("/api/v1/auth/me"),
 
   /** POST /api/v1/auth/logout — elimina la cookie HttpOnly */
-  logout: () =>
-    apiFetch<{ message: string }>("/api/v1/auth/logout", { method: "POST" }),
+  logout: () => apiFetch<{ message: string }>("/api/v1/auth/logout", { method: "POST" }),
 };
 
 // ── Endpoints de Órdenes de Trabajo ───────────────────────────────────────────
@@ -126,18 +122,21 @@ export interface WorkOrderPart {
 }
 
 export const workOrdersApi = {
-  list: async (params: {
-    page?: number;
-    page_size?: number;
-    search?: string;
-    c_estado?: string;
-    marca?: string;
-  } = {}) => {
+  list: async (
+    params: {
+      page?: number;
+      page_size?: number;
+      search?: string;
+      c_estado?: string;
+      marca?: string;
+    } = {},
+  ) => {
     const searchParams = new URLSearchParams();
     if (params.page) searchParams.append("page", params.page.toString());
     if (params.page_size) searchParams.append("page_size", params.page_size.toString());
     if (params.search) searchParams.append("search", params.search);
-    if (params.c_estado && params.c_estado !== "todos") searchParams.append("c_estado", params.c_estado);
+    if (params.c_estado && params.c_estado !== "todos")
+      searchParams.append("c_estado", params.c_estado);
     if (params.marca) searchParams.append("marca", params.marca);
 
     const query = searchParams.toString();
@@ -160,8 +159,7 @@ export interface VehicleBrandSummary {
 }
 
 export const vehiclesApi = {
-  brandsSummary: () =>
-    apiFetch<VehicleBrandSummary[]>("/api/v1/vehicles/brands-summary"),
+  brandsSummary: () => apiFetch<VehicleBrandSummary[]>("/api/v1/vehicles/brands-summary"),
 };
 
 // ── Endpoints de Repuestos ────────────────────────────────────────────────────

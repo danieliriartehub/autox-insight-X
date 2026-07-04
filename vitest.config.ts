@@ -1,3 +1,7 @@
+// ── Configuración de Vitest ───────────────────────────────────────────────────
+// Entorno jsdom para pruebas de componentes React.
+// Resuelve el alias @/ → src/ y carga el setup global.
+
 import { defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react";
 import { fileURLToPath } from "node:url";

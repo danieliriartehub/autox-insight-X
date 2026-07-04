@@ -1,3 +1,4 @@
+// ── Componente Chart ── Contenedor base para gráficos Recharts
 import * as React from "react";
 import * as RechartsPrimitive from "recharts";
 

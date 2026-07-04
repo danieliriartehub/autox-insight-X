@@ -1,3 +1,4 @@
+// ── Componente Progress ── Barra de progreso
 "use client";
 
 import * as React from "react";

@@ -1,3 +1,8 @@
+// ── Configuración de TypeScript ───────────────────────────────────────────────
+// Compilador TS para el frontend. Usa moduleResolution "Bundler",
+// target ES2022, JSX react-jsx y resuelve @/ → src/.
+// strict mode activado, unused vars permitido para desarrollo ágil.
+
 {
   "include": ["src/**/*.ts", "src/**/*.tsx", "vite.config.ts", "eslint.config.js"],
   "compilerOptions": {
@@ -9,6 +14,7 @@
 
     /* Bundler mode */
     "moduleResolution": "Bundler",
+    "allowArbitraryExtensions": true,
     "allowImportingTsExtensions": true,
     "verbatimModuleSyntax": false,
     "noEmit": true,

@@ -1,3 +1,4 @@
+// ── Componente Accordion ── Panel plegable con secciones expandibles
 import * as React from "react";
 import * as AccordionPrimitive from "@radix-ui/react-accordion";
 import { ChevronDown } from "lucide-react";

@@ -1,3 +1,7 @@
+// ── Reporte de errores a Lovable ──────────────────────────────────────────────
+// Envía excepciones no capturadas al sistema de monitoreo de Lovable
+// para que el equipo de desarrollo pueda diagnosticar problemas en producción.
+
 type LovableErrorOptions = {
   mechanism?: "manual" | "onerror" | "unhandledrejection" | "react_error_boundary";
   handled?: boolean;

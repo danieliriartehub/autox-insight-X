@@ -1,3 +1,4 @@
+// ── Componente ToggleGroup ── Grupo de botones toggle
 "use client";
 
 import * as React from "react";

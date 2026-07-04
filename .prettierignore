@@ -1,3 +1,6 @@
+# ── Archivos ignorados por Prettier ────────────────────────────────────────────
+# Directorios de build, lockfiles y archivos generados automáticamente.
+
 node_modules
 dist
 .output

@@ -1,3 +1,8 @@
+// ── Hook: useMultiMonthForecast ───────────────────────────────────────────────
+// Consulta el modelo ML para N meses futuros × M repuestos en paralelo.
+// Genera el conjunto de datos para el gráfico de pronóstico trimestral
+// en la página de IA Predictiva.
+
 import { useEffect, useState } from "react";
 import { fetchPrediction, type PredictResponse } from "@/services/predict";
 
@@ -27,9 +32,9 @@ export function useMultiMonthForecast(
   currentAnio: number,
   nMonths = 3,
 ) {
-  const [data,    setData]    = useState<ForecastEntry[]>([]);
+  const [data, setData] = useState<ForecastEntry[]>([]);
   const [loading, setLoading] = useState(false);
-  const [error,   setError]   = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   // Stable cache key
   const key = `${codigos.slice().sort().join(",")}-${currentMes}-${currentAnio}-${nMonths}`;
@@ -42,9 +47,9 @@ export function useMultiMonthForecast(
 
     // Genera los meses futuros: empieza en el MES SIGUIENTE al actual
     const months = Array.from({ length: nMonths }, (_, i) => {
-      const total = currentMes + i + 1;          // +1 → primer mes es el SIGUIENTE
-      const mes   = ((total - 1) % 12) + 1;
-      const anio  = currentAnio + Math.floor((total - 1) / 12);
+      const total = currentMes + i + 1; // +1 → primer mes es el SIGUIENTE
+      const mes = ((total - 1) % 12) + 1;
+      const anio = currentAnio + Math.floor((total - 1) / 12);
       return { mes, anio };
     });
 
@@ -53,7 +58,7 @@ export function useMultiMonthForecast(
       codigos.slice(0, 7).flatMap((codigo) =>
         months.map(({ mes, anio }) =>
           fetchPrediction({ codigo_repuesto: codigo, mes, anio, km: 50_000 })
-            .then((pred) => ({ codigo, mes, anio, pred } as ForecastEntry))
+            .then((pred) => ({ codigo, mes, anio, pred }) as ForecastEntry)
             .catch(() => null),
         ),
       ),
@@ -68,7 +73,9 @@ export function useMultiMonthForecast(
         if (!cancelled) setLoading(false);
       });
 
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key]);
 

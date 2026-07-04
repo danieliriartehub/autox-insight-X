@@ -1,3 +1,4 @@
+// ── Componente Dialog ── Ventana modal superpuesta
 "use client";
 
 import * as React from "react";

@@ -1,3 +1,8 @@
+// ── Configuración de ESLint ───────────────────────────────────────────────────
+// Reglas de linting: TypeScript estricto + React Hooks + Prettier.
+// Deshabilita @typescript-eslint/no-unused-vars para desarrollo ágil.
+// Restringe importaciones del paquete server-only (no aplica en TanStack).
+
 import js from "@eslint/js";
 import eslintPluginPrettier from "eslint-plugin-prettier/recommended";
 import globals from "globals";

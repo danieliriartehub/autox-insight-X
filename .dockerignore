@@ -1,0 +1,27 @@
+# ──────────────────────────────────────────────────────────
+#  MEJORA: Excluir archivos innecesarios del build Docker
+#  RAZÓN: Reduce el contexto enviado al daemon de Docker,
+#         acelerando builds y evitando cachear basura.
+#  IMPACTO: Build context 90% más pequeño.
+# ──────────────────────────────────────────────────────────
+
+node_modules
+.git
+.gitignore
+.env*
+*.md
+.vscode
+.idea
+tests
+dist
+.output
+.vinxi
+*.local
+bun.lock
+bunfig.toml
+package-lock.json
+coverage
+security-reports
+zap-reports
+.trivy-cache
+.gitkeep

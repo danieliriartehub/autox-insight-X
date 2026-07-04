@@ -1,3 +1,8 @@
+// ── Hooks de datos — Supabase ─────────────────────────────────────────────────
+// Conjunto de hooks que consultan tablas reales de Supabase
+// (orden_trabajo, ot_repuesto, stock, repuesto, orden_compra_detalle)
+// y transforman los datos para los gráficos y tablas del dashboard.
+
 import { useEffect, useState } from "react";
 import { supabase, supabaseReady } from "@/lib/supabase";
 
@@ -59,7 +64,7 @@ export interface TopRepuesto {
 // ── helpers internos ──────────────────────────────────────────────────────────
 
 const TIMEOUT_MS = 12_000;
-const MESES = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
+const MESES = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
 
 function useQuery<T>(fetcher: () => Promise<T>, deps: unknown[] = []) {
   const [data, setData] = useState<T | null>(null);
@@ -68,7 +73,9 @@ function useQuery<T>(fetcher: () => Promise<T>, deps: unknown[] = []) {
 
   useEffect(() => {
     if (!supabaseReady) {
-      setError("Variables de entorno de Supabase no configuradas. Revisar Vercel → Settings → Environment Variables.");
+      setError(
+        "Variables de entorno de Supabase no configuradas. Revisar Vercel → Settings → Environment Variables.",
+      );
       setLoading(false);
       return;
     }
@@ -86,13 +93,24 @@ function useQuery<T>(fetcher: () => Promise<T>, deps: unknown[] = []) {
 
     fetcher()
       .then((d) => {
-        if (!cancelled) { clearTimeout(timeout); setData(d); setLoading(false); }
+        if (!cancelled) {
+          clearTimeout(timeout);
+          setData(d);
+          setLoading(false);
+        }
       })
       .catch((e: Error) => {
-        if (!cancelled) { clearTimeout(timeout); setError(e.message); setLoading(false); }
+        if (!cancelled) {
+          clearTimeout(timeout);
+          setError(e.message);
+          setLoading(false);
+        }
       });
 
-    return () => { cancelled = true; clearTimeout(timeout); };
+    return () => {
+      cancelled = true;
+      clearTimeout(timeout);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, deps);
 
@@ -112,18 +130,19 @@ function mapEstado(c: string | null | undefined): OTEstado {
 
 function extractCategoria(desc: string): string {
   const d = (desc ?? "").toLowerCase();
-  if (d.includes("filtro"))                                          return "Filtros";
-  if (d.includes("aceite") || d.includes("lubricante"))             return "Aceites";
+  if (d.includes("filtro")) return "Filtros";
+  if (d.includes("aceite") || d.includes("lubricante")) return "Aceites";
   if (d.includes("freno") || d.includes("pastilla") || d.includes("disco")) return "Frenos";
-  if (d.includes("amortiguador") || d.includes("suspen") || d.includes("resorte")) return "Suspensión";
+  if (d.includes("amortiguador") || d.includes("suspen") || d.includes("resorte"))
+    return "Suspensión";
   if (d.includes("bateria") || d.includes("faro") || d.includes("electr")) return "Eléctrico";
   if (d.includes("correa") || d.includes("motor") || d.includes("piston")) return "Motor";
   return "Otros";
 }
 
 function calcEstado(stock: number, min: number, max: number): StockEstado {
-  if (stock <= 0)   return "Crítico";
-  if (stock < min)  return "Bajo";
+  if (stock <= 0) return "Crítico";
+  if (stock < min) return "Bajo";
   if (max > 0 && stock > max) return "Exceso";
   return "Óptimo";
 }
@@ -142,22 +161,19 @@ export function useKpis() {
       supabase.from("stock").select("stock, stock_minimo").limit(5000),
     ]);
 
-    const ots      = otRes.data   ?? [];
+    const ots = otRes.data ?? [];
     const repuestos = otrRes.data ?? [];
-    const stocks   = stockRes.data ?? [];
+    const stocks = stockRes.data ?? [];
 
-    const otsAbiertas   = ots.filter((o) => ["I0", "I1", "I2", "I9"].includes(o.c_estado as string)).length;
-    const otsCerradas   = ots.filter((o) => o.c_estado === "S9").length;
-    const repuestosConsumidos = Math.round(
-      repuestos.reduce((s, r) => s + (Number(r.cantidad) || 0), 0)
-    );
-    const inventarioDisponible = stocks.reduce(
-      (s, st) => s + Math.round(Number(st.stock) || 0), 
-      0
-    );
-    const quiebresStock = stocks.filter(
-      (st) => Number(st.stock) < Number(st.stock_minimo)
+    const otsAbiertas = ots.filter((o) =>
+      ["I0", "I1", "I2", "I9"].includes(o.c_estado as string),
     ).length;
+    const otsCerradas = ots.filter((o) => o.c_estado === "S9").length;
+    const repuestosConsumidos = Math.round(
+      repuestos.reduce((s, r) => s + (Number(r.cantidad) || 0), 0),
+    );
+    const inventarioDisponible = stocks.reduce((s, st) => s + Math.round(Number(st.stock) || 0), 0);
+    const quiebresStock = stocks.filter((st) => Number(st.stock) < Number(st.stock_minimo)).length;
 
     return {
       otsAbiertas,
@@ -186,7 +202,7 @@ export function useConsumoMensual() {
     const grouped: Record<string, { consumo: number; mes: string }> = {};
     for (const row of data) {
       const anio = Number(row.anio_registro);
-      const mes  = Number(row.mes_registro);
+      const mes = Number(row.mes_registro);
       if (!anio || !mes) continue;
       const ym = `${anio}-${String(mes).padStart(2, "0")}`;
       if (!grouped[ym]) grouped[ym] = { consumo: 0, mes: MESES[mes - 1] };
@@ -245,10 +261,10 @@ export function useNivelInventario() {
     for (const row of data) {
       const repData = row.repuesto as { descripcion?: string } | null;
       const desc = String(repData?.descripcion ?? "");
-      const cat  = extractCategoria(desc);
+      const cat = extractCategoria(desc);
       if (!byCat[cat]) byCat[cat] = { actual: 0, minimo: 0 };
-      byCat[cat].actual  += Number(row.stock)        || 0;
-      byCat[cat].minimo  += Number(row.stock_minimo) || 0;
+      byCat[cat].actual += Number(row.stock) || 0;
+      byCat[cat].minimo += Number(row.stock_minimo) || 0;
     }
 
     return Object.entries(byCat)
@@ -304,12 +320,12 @@ export function useDetalleOT(otId: string) {
       .eq("n_ot", otNum);
     const repuestos = (data ?? []).map((r) => ({
       codigo: String(r.producto_id ?? ""),
-      desc:   String(r.descripcion ?? r.producto_id ?? ""),
-      cant:   Number(r.cantidad) || 0,
+      desc: String(r.descripcion ?? r.producto_id ?? ""),
+      cant: Number(r.cantidad) || 0,
     }));
     return {
       servicios: repuestos.length ? ["Ver repuestos en tabla"] : ["Sin repuestos registrados"],
-      fallas:    [],
+      fallas: [],
       repuestos,
       ejecucion: 100,
     };
@@ -331,15 +347,15 @@ export function useInventario() {
     return data
       .map((row) => {
         const repData = row.repuesto as { descripcion?: string; marca?: string } | null;
-        const desc  = String(repData?.descripcion ?? row.c_repuesto ?? "");
-        const stock = Math.round(Number(row.stock)        || 0);
-        const min   = Math.round(Number(row.stock_minimo) || 0);
-        const max   = Math.round(Number(row.stock_maximo) || 0) || Math.max(min * 3, 1);
+        const desc = String(repData?.descripcion ?? row.c_repuesto ?? "");
+        const stock = Math.round(Number(row.stock) || 0);
+        const min = Math.round(Number(row.stock_minimo) || 0);
+        const max = Math.round(Number(row.stock_maximo) || 0) || Math.max(min * 3, 1);
         return {
-          codigo:   String(row.c_repuesto ?? ""),
+          codigo: String(row.c_repuesto ?? ""),
           repuesto: desc,
           categoria: extractCategoria(desc),
-          marca:    String(repData?.marca ?? "—"),
+          marca: String(repData?.marca ?? "—"),
           stock,
           min,
           max,
@@ -368,10 +384,10 @@ export function useMovimientos() {
       const d = new Date(Date.now() - i * 3 * 24 * 3600000);
       return {
         fecha: d.toISOString().split("T")[0],
-        tipo:  "Entrada" as const,
+        tipo: "Entrada" as const,
         codigo: String(row.repuesto_id ?? "—"),
-        cant:   Number(row.cantidad_compra) || 0,
-        ref:    `OC-${row.n_oc ?? row.id}`,
+        cant: Number(row.cantidad_compra) || 0,
+        ref: `OC-${row.n_oc ?? row.id}`,
       };
     });
   });
@@ -383,10 +399,7 @@ export function useMovimientos() {
  */
 export function useRepuestosMasConsumidos() {
   return useQuery(async () => {
-    const { data } = await supabase
-      .from("ot_repuesto")
-      .select("descripcion, cantidad")
-      .limit(8000);
+    const { data } = await supabase.from("ot_repuesto").select("descripcion, cantidad").limit(8000);
     if (!data) return [];
 
     const byDesc: Record<string, number> = {};
@@ -400,7 +413,7 @@ export function useRepuestosMasConsumidos() {
       .slice(0, 6)
       .map(([repuesto, consumo]) => ({
         repuesto: repuesto.slice(0, 28),
-        consumo:  Math.round(consumo),
+        consumo: Math.round(consumo),
       }));
   });
 }
@@ -415,7 +428,7 @@ export function useConsumoPorTipo() {
       supabase.from("orden_trabajo").select("n_ot, tipo_ot_desc"),
       supabase.from("ot_repuesto").select("n_ot, cantidad").limit(8000),
     ]);
-    const ots = otRes.data  ?? [];
+    const ots = otRes.data ?? [];
     const otr = otrRes.data ?? [];
 
     const otTipo: Record<string, string> = {};
@@ -450,22 +463,22 @@ export function useTendenciaFutura() {
     const grouped: Record<string, { consumo: number; mes: string }> = {};
     for (const row of data) {
       const anio = Number(row.anio_registro);
-      const mes  = Number(row.mes_registro);
+      const mes = Number(row.mes_registro);
       if (!anio || !mes) continue;
       const ym = `${anio}-${String(mes).padStart(2, "0")}`;
       if (!grouped[ym]) grouped[ym] = { consumo: 0, mes: MESES[mes - 1] };
       grouped[ym].consumo += Number(row.cantidad) || 0;
     }
 
-    const now   = new Date();
+    const now = new Date();
     const nowYM = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 
     return Object.entries(grouped)
       .sort(([a], [b]) => a.localeCompare(b))
       .slice(-12)
       .map(([ym, v]) => ({
-        mes:       v.mes,
-        actual:    ym <= nowYM ? Math.round(v.consumo) : null,
+        mes: v.mes,
+        actual: ym <= nowYM ? Math.round(v.consumo) : null,
         prediccion: Math.round(v.consumo * (ym <= nowYM ? 1 : 1.1)),
       }));
   });
@@ -482,16 +495,16 @@ export function useTopRepuestos() {
       supabase.from("ot_repuesto").select("producto_id, descripcion, cantidad").limit(8000),
       supabase.from("stock").select("c_repuesto, stock, stock_minimo").limit(2000),
     ]);
-    
+
     const data = otRes.data ?? [];
     const stockData = stockRes.data ?? [];
 
     const stockMap: Record<string, { stock: number; min: number }> = {};
     for (const s of stockData) {
       if (s.c_repuesto) {
-        stockMap[s.c_repuesto] = { 
-          stock: Number(s.stock) || 0, 
-          min: Number(s.stock_minimo) || 0 
+        stockMap[s.c_repuesto] = {
+          stock: Number(s.stock) || 0,
+          min: Number(s.stock_minimo) || 0,
         };
       }
     }
@@ -511,10 +524,10 @@ export function useTopRepuestos() {
         const s = stockMap[codigo] ?? { stock: 0, min: 0 };
         return {
           codigo,
-          repuesto:    v.desc.slice(0, 30),
-          demanda:     Math.round(v.total),
+          repuesto: v.desc.slice(0, 30),
+          demanda: Math.round(v.total),
           recomendado: Math.round(v.total * 1.2),
-          riesgo:      v.total < 10 ? "Alto" : v.total < 50 ? "Medio" : "Bajo",
+          riesgo: v.total < 10 ? "Alto" : v.total < 50 ? "Medio" : "Bajo",
           stockActual: s.stock,
           stockMinimo: s.min,
         };

@@ -1,3 +1,7 @@
+// ── Página de error SSR ───────────────────────────────────────────────────────
+// HTML estático que se sirve cuando el servidor falla en renderizar la SPA.
+// Muestra un mensaje amigable con opciones de reintentar o volver al inicio.
+
 export function renderErrorPage(): string {
   return `<!doctype html>
 <html lang="en">

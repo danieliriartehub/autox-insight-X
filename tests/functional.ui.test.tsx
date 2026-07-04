@@ -1,18 +1,16 @@
-/**
- * PRUEBAS FUNCIONALES — Componentes de UI.
- *
- * Renderizan componentes reales en jsdom y verifican el comportamiento
- * observable por el usuario (texto, roles, presencia de elementos).
- */
+// ── Pruebas funcionales de UI ─────────────────────────────────────────────────
+// Renderiza componentes reales en jsdom y verifica comportamiento
+// observable por el usuario: textos, roles, presencia de elementos.
+
 import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 
-// Mock del contexto de auth para TopBar.
+// Mock del contexto de autenticación para aislar el componente TopBar
 vi.mock("@/contexts/AuthContext", () => ({
   useAuth: () => ({ user: { nombre_completo: "Oscar Perez", cargo: "Jefe de Taller" } }),
 }));
 
-// Mock del SidebarTrigger (depende del provider de sidebar).
+// Mock del SidebarTrigger (depende del provider de sidebar, que jsdom no tiene)
 vi.mock("@/components/ui/sidebar", () => ({
   SidebarTrigger: () => <button aria-label="toggle-sidebar">☰</button>,
 }));
@@ -38,10 +36,9 @@ describe("TopBar", () => {
   });
 });
 
-/**
- * Lógica de negocio del banner de IA (RF-11): traducción de error → precisión.
- * Replica el cálculo `100 - error` que la página muestra al usuario final.
- */
+// ── Lógica de negocio: traducción error → precisión (RF-11) ──────────────────
+// Replica el cálculo `100 - error` que la página muestra al usuario final.
+
 describe("Traducción error → precisión (indicadores IA)", () => {
   const precision = (error: number) => Number((100 - error).toFixed(1));
 
@@ -59,12 +56,10 @@ describe("Traducción error → precisión (indicadores IA)", () => {
   });
 });
 
-/**
- * Etiqueta de confiabilidad (RF-10): la lógica de color/etiqueta según umbral 80%.
- */
+// ── Lógica de negocio: etiqueta de confiabilidad por umbral (RF-10) ──────────
+
 describe("Etiqueta de confiabilidad por umbral (RF-10)", () => {
-  const etiqueta = (conf: number) =>
-    conf >= 0.8 ? "alta" : conf >= 0.6 ? "media" : "baja";
+  const etiqueta = (conf: number) => (conf >= 0.8 ? "alta" : conf >= 0.6 ? "media" : "baja");
 
   it("≥ 0.80 → alta", () => expect(etiqueta(0.95)).toBe("alta"));
   it("0.70 → media", () => expect(etiqueta(0.7)).toBe("media"));

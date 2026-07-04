@@ -1,3 +1,4 @@
+// ── Componente Popover ── Ventana flotante contextual
 import * as React from "react";
 import * as PopoverPrimitive from "@radix-ui/react-popover";
 

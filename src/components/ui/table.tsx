@@ -1,3 +1,4 @@
+// ── Componente Table ── Tabla de datos con estilo consistente
 import * as React from "react";
 
 import { cn } from "@/lib/utils";

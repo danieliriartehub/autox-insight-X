@@ -1,3 +1,4 @@
+// ── Componente Toggle ── Botón de dos estados (encendido/apagado)
 import * as React from "react";
 import * as TogglePrimitive from "@radix-ui/react-toggle";
 import { cva, type VariantProps } from "class-variance-authority";

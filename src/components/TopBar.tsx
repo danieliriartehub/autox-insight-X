@@ -1,19 +1,26 @@
+// ──────────────────────────────────────────────────────────
+//  Componente: Barra superior (TopBar)
+//  Muestra el título de la página, el botón del sidebar y
+//  la información del usuario autenticado.
+// ──────────────────────────────────────────────────────────
+
 import { UserCircle } from "lucide-react";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { useAuth } from "@/contexts/AuthContext";
 
 export function TopBar({ title, subtitle }: { title: string; subtitle?: string }) {
   const { user } = useAuth();
-  
+
   return (
     <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b bg-card px-4">
+      {/* Botón para colapsar/expandir el sidebar */}
       <SidebarTrigger />
+      {/* Título y subtítulo de la página */}
       <div className="flex flex-col leading-tight">
         <h1 className="text-sm font-semibold text-foreground">{title}</h1>
-        {subtitle && (
-          <span className="text-xs text-muted-foreground">{subtitle}</span>
-        )}
+        {subtitle && <span className="text-xs text-muted-foreground">{subtitle}</span>}
       </div>
+      {/* Información del usuario autenticado */}
       <div className="ml-auto flex items-center gap-2">
         <div className="flex items-center gap-2 rounded-md border bg-background px-2 py-1">
           <UserCircle className="h-5 w-5 text-primary" />
