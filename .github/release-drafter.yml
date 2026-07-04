@@ -1,0 +1,38 @@
+# MEZCLA: Release Drafter — genera changelog automático
+# RAZÓN: Mantiene release notes actualizadas sin esfuerzo manual
+# IMPACTO: Trazabilidad de cambios para stakeholders del proyecto
+
+name-template: "v$RESOLVED_VERSION"
+tag-template: "v$RESOLVED_VERSION"
+
+categories:
+  - title: "🚀 Features"
+    labels:
+      - "enhancement"
+      - "feature"
+  - title: "🐛 Bug Fixes"
+    labels:
+      - "bug"
+      - "fix"
+  - title: "🧪 Tests"
+    labels:
+      - "tests"
+  - title: "🔧 Infrastructure"
+    labels:
+      - "infrastructure"
+      - "docker"
+  - title: "📦 Dependencies"
+    labels:
+      - "dependencies"
+  - title: "📄 Documentation"
+    labels:
+      - "documentation"
+
+change-template: "- $TITLE @$AUTHOR (#$NUMBER)"
+
+template: |
+  ## Cambios
+
+  $CHANGES
+
+  **Full Changelog:** https://github.com/danieliriartehub/autox-insight-X/compare/$PREVIOUS_TAG...v$RESOLVED_VERSION

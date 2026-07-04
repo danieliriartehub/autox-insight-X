@@ -1,0 +1,35 @@
+# MEJORA: Stale issues/prs — cierre automático de inactivos
+# RAZÓN: Mantiene el backlog limpio sin intervención manual
+# IMPACTO: Reducción de ruido en issues, enfoque en tareas activas
+
+name: "Stale issues & PRs"
+on:
+  schedule:
+    - cron: "0 6 * * 1"
+
+permissions:
+  issues: write
+  pull-requests: write
+
+jobs:
+  stale:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/stale@v9
+        with:
+          stale-issue-message: >
+            Esta issue lleva 60 días sin actividad. Se marcará como cerrada
+            en 7 días si no hay respuesta.
+          stale-pr-message: >
+            Este PR lleva 30 días sin actividad. Se marcará como cerrado
+            en 7 días si no hay respuesta.
+          close-issue-message: "Cerrada por inactividad."
+          close-pr-message: "Cerrado por inactividad."
+          days-before-stale: 60
+          days-before-close: 7
+          days-before-pr-stale: 30
+          days-before-pr-close: 7
+          stale-issue-label: "stale"
+          stale-pr-label: "stale"
+          exempt-issue-labels: "pinned,security,bug"
+          exempt-pr-labels: "pinned,security,dependencies"

@@ -1,0 +1,21 @@
+# MEJORA: PR Labeler — etiquetado automático de PRs
+# RAZÓN: Clasifica PRs por área del código usando los patrones de .github/labeler.yml
+# IMPACTO: Releases organizados, filtrado por categoría en el dashboard de GitHub
+
+name: "PR Labeler"
+on:
+  pull_request_target:
+    types: [opened, synchronize]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  label:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/labeler@v5
+        with:
+          configuration-path: .github/labeler.yml
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
