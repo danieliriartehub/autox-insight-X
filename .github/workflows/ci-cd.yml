@@ -214,7 +214,7 @@ jobs:
       - name: E2E Tests with Playwright
         run: |
           npx playwright install --with-deps chromium
-          echo "✅ Playwright E2E tests ready — extend with tests/e2e/*.spec.ts"
+          npx playwright test
         # ── RAZÓN: Playwright E2E tests sobre el frontend
         #    servido por nginx en el contenedor Docker ──
         continue-on-error: true

@@ -28,6 +28,8 @@ dist-ssr
 
 # Reports
 coverage/
+playwright-report/
+test-results/
 security-reports/
 zap-reports/
 performance-results.json
