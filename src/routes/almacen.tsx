@@ -1,9 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { AlertTriangle, ArrowDownToLine, Search, ShoppingCart } from "lucide-react";
+import { AlertTriangle, Search, ShoppingCart } from "lucide-react";
 
 import { TopBar } from "@/components/TopBar";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -17,7 +17,7 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { useInventario, useMovimientos, type StockEstado } from "@/hooks/useData";
+import { useInventario, type StockEstado } from "@/hooks/useData";
 import { usePredictions } from "@/hooks/usePredictions";
 
 export const Route = createFileRoute("/almacen")({
@@ -42,10 +42,8 @@ function AlmacenPage() {
   const [cat, setCat] = useState("todas");
 
   const { data: inventarioData, loading: invLoading } = useInventario();
-  const { data: movimientosData, loading: movLoading } = useMovimientos();
 
   const inventario = inventarioData ?? [];
-  const movimientos = movimientosData ?? [];
 
   const categorias = useMemo(() => Array.from(new Set(inventario.map((i) => i.categoria))), [inventario]);
 
