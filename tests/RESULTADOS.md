@@ -17,6 +17,8 @@
 | Rendimiento | 4 | 4 | 0 | ✅ |
 | **TOTAL** | **20** | **20** | **0** | ✅ **100%** |
 
+**Cobertura de código:** **93.5% de líneas** en los módulos probados (servicios de IA + componente). Detalle en la sección 5.
+
 > Las pruebas de **usabilidad** (heurísticas de Nielsen aplicadas a la UI) se documentan en la sección 4.
 
 ---
@@ -107,6 +109,39 @@ Evaluación de la página **Centro de Comando SCM Predictivo** contra las 10 heu
 
 ---
 
+## 5. Cobertura de código
+
+Medida con `@vitest/coverage-v8` sobre los módulos ejercitados por las pruebas
+(servicios de IA y componente TopBar).
+
+| Métrica | Cobertura |
+|---|---:|
+| **Líneas** | **93.5%** (29/31) |
+| Sentencias | 81.6% (31/38) |
+| Funciones | 77.8% (7/9) |
+| Ramas | 61.1% (22/36) |
+
+### Detalle por módulo
+
+| Módulo | % Líneas | % Funciones | Rol |
+|---|---:|---:|---|
+| `src/components/TopBar.tsx` | **100%** | 100% | Barra superior |
+| `src/services/predict.ts` | **93.1%** | 75% | Servicios de IA (RF-09/10/11/12/15) |
+
+> **El servicio que concentra toda la comunicación con el motor de IA
+> (`predict.ts`) está cubierto al 93% de líneas.** Las 2 líneas sin cubrir (198-199)
+> son el manejo de un error poco frecuente en la generación de OC.
+
+> **Alcance de la medición:** la cobertura reportada corresponde a los módulos con
+> pruebas (servicios + componente). Las páginas completas (`prediccion.tsx`,
+> `almacen.tsx`, etc.) y los componentes de UI de shadcn no tienen pruebas de
+> renderizado end-to-end; su comportamiento se valida manualmente mediante los
+> recorridos funcionales documentados en el informe. La estrategia priorizó cubrir
+> la **capa de servicios de IA** (la lógica de negocio crítica) sobre el render de
+> páginas, que es mayormente presentacional.
+
+---
+
 ## Cómo reproducir
 
 ```bash
@@ -114,6 +149,10 @@ cd autox-insight-X
 npm install          # incluye las devDependencies de test (vitest, testing-library)
 npm test             # corre las 20 pruebas
 npm run test:watch   # modo watch para desarrollo
+
+# con reporte de cobertura:
+npx vitest run --config vitest.config.ts --coverage \
+  --coverage.include='src/services/**' --coverage.include='src/components/TopBar.tsx'
 ```
 
 ## Cobertura de requerimientos
