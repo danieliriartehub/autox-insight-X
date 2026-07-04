@@ -1,8 +1,5 @@
-import { Search, UserCircle } from "lucide-react";
+import { UserCircle } from "lucide-react";
 import { SidebarTrigger } from "@/components/ui/sidebar";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/contexts/AuthContext";
 
 export function TopBar({ title, subtitle }: { title: string; subtitle?: string }) {
