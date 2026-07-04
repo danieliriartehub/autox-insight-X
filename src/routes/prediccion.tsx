@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   Brain, Sparkles, AlertTriangle, ShoppingCart, Zap,
   CheckCircle2, ArrowRight, Loader2, BarChart2,
-  RefreshCw, ShieldCheck, ShieldAlert,
+  RefreshCw, ShieldCheck, ShieldAlert, Info,
 } from "lucide-react";
 import {
   CartesianGrid, ResponsiveContainer, Tooltip as RechartsTooltip, XAxis, YAxis,
@@ -24,6 +24,9 @@ import {
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
+import {
+  Tooltip, TooltipTrigger, TooltipContent,
+} from "@/components/ui/tooltip";
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter,
   DialogHeader, DialogTitle, DialogTrigger,
@@ -249,10 +252,26 @@ function PrediccionPage() {
             </div>
 
             <div className="flex flex-wrap gap-6 text-sm">
-              <Stat label="wMAPE (error ponderado)" value={mlStatusLoading ? "…" : mlStatus?.metrics?.wmape != null ? `${mlStatus.metrics.wmape}%` : "—"} />
-              <Stat label="MAPE alta rotación" value={mlStatusLoading ? "…" : mlStatus?.metrics?.mape_alta_rotacion != null ? `${mlStatus.metrics.mape_alta_rotacion}%` : "—"} />
-              <Stat label="MAE del modelo" value={mlStatusLoading ? "…" : mlStatus?.metrics?.mae != null ? `±${mlStatus.metrics.mae} uds` : "—"} />
-              <Stat label="Confiabilidad media" value={predLoading ? "…" : `${Math.round(avgConfianza * 100)}%`} />
+              <Stat
+                label="Precisión global"
+                value={mlStatusLoading ? "…" : mlStatus?.metrics?.wmape != null ? `${(100 - mlStatus.metrics.wmape).toFixed(1)}%` : "—"}
+                info="Qué tan cerca acierta la IA en todo el catálogo, ponderando por volumen de consumo. Un valor más alto = predicciones más confiables. (Métrica técnica: wMAPE)"
+              />
+              <Stat
+                label="Precisión en repuestos clave"
+                value={mlStatusLoading ? "…" : mlStatus?.metrics?.mape_alta_rotacion != null ? `${(100 - mlStatus.metrics.mape_alta_rotacion).toFixed(1)}%` : "—"}
+                info="Precisión de la IA solo en los repuestos de alta rotación (los que más impacto tienen en tu inventario). Es el indicador más relevante para las compras. (Métrica técnica: MAPE en SKUs de demanda ≥5)"
+              />
+              <Stat
+                label="Margen de error típico"
+                value={mlStatusLoading ? "…" : mlStatus?.metrics?.mae != null ? `±${Math.round(mlStatus.metrics.mae)} uds` : "—"}
+                info="En promedio, la predicción de la IA se desvía esta cantidad de unidades respecto al consumo real. Cuanto menor, mejor. (Métrica técnica: MAE)"
+              />
+              <Stat
+                label="Confianza promedio"
+                value={predLoading ? "…" : `${Math.round(avgConfianza * 100)}%`}
+                info="Nivel de confianza promedio de las predicciones que ves en pantalla. Depende de cuánta historia tiene cada repuesto: mientras más datos, más confiable."
+              />
             </div>
 
             <div className="flex items-center gap-2">
@@ -297,14 +316,26 @@ function PrediccionPage() {
         {/* ── KPI Row SCM ─────────────────────────────────────────────────── */}
         <section className="grid grid-cols-2 gap-4 md:grid-cols-4">
           {[
-            { label: "Salud Logística (Score)", value: topLoading ? null : `${healthScore}/100`, sub: healthScore > 80 ? "Óptimo" : "Requiere atención", color: healthScore > 80 ? "text-success" : "text-warning" },
-            { label: "Quiebres Inminentes", value: predLoading ? null : String(itemsEnQuiebre), sub: "Repuestos con Déficit", color: itemsEnQuiebre > 0 ? "text-destructive" : "text-success" },
-            { label: "Volumen a Abastecer", value: predLoading ? null : `${deficitTotal} uds`, sub: "Para cubrir demanda IA", color: "text-primary" },
-            { label: "Días de Cobertura Promedio", value: "14.5", sub: "Stock vs Velocidad consumo", color: "text-foreground" },
+            { label: "Salud Logística (Score)", value: topLoading ? null : `${healthScore}/100`, sub: healthScore > 80 ? "Óptimo" : "Requiere atención", color: healthScore > 80 ? "text-success" : "text-warning", info: "Puntaje general del abastecimiento (0 a 100). Baja cuando hay repuestos en riesgo de quiebre o cuando la IA tiene poca confianza. Arriba de 80 es óptimo." },
+            { label: "Quiebres Inminentes", value: predLoading ? null : String(itemsEnQuiebre), sub: "Repuestos con Déficit", color: itemsEnQuiebre > 0 ? "text-destructive" : "text-success", info: "Cantidad de repuestos cuyo stock actual no alcanza para cubrir la demanda que proyecta la IA. Cada uno es una compra urgente." },
+            { label: "Volumen a Abastecer", value: predLoading ? null : `${deficitTotal} uds`, sub: "Para cubrir demanda IA", color: "text-primary", info: "Total de unidades que deberías comprar para cubrir toda la demanda proyectada por la IA y evitar quiebres." },
+            { label: "Días de Cobertura Promedio", value: "14.5", sub: "Stock vs Velocidad consumo", color: "text-foreground", info: "Con el stock actual y el ritmo de consumo, cuántos días en promedio te dura el inventario antes de agotarse." },
           ].map((m) => (
             <Card key={m.label}>
               <CardContent className="p-5">
-                <div className="text-xs uppercase tracking-wider text-muted-foreground">{m.label}</div>
+                <div className="flex items-center gap-1 text-xs uppercase tracking-wider text-muted-foreground">
+                  {m.label}
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button type="button" className="inline-flex text-muted-foreground/70 hover:text-primary transition-colors" aria-label={`Qué significa ${m.label}`}>
+                        <Info className="h-3 w-3" />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom" className="max-w-[260px] bg-popover text-popover-foreground border shadow-md text-[11px] leading-snug font-normal normal-case tracking-normal">
+                      {m.info}
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
                 {m.value === null ? <Skeleton className="mt-2 h-8 w-20" /> : <div className={`mt-1 text-3xl font-bold ${m.color}`}>{m.value}</div>}
                 <div className="mt-1 text-xs text-muted-foreground">{m.sub}</div>
               </CardContent>
@@ -622,10 +653,24 @@ function PrediccionPage() {
   );
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
+function Stat({ label, value, info }: { label: string; value: string; info?: string }) {
   return (
     <div>
-      <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</div>
+      <div className="flex items-center gap-1 text-[10px] uppercase tracking-wider text-muted-foreground">
+        {label}
+        {info && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button type="button" className="inline-flex text-muted-foreground/70 hover:text-primary transition-colors" aria-label={`Qué significa ${label}`}>
+                <Info className="h-3 w-3" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" className="max-w-[260px] bg-popover text-popover-foreground border shadow-md text-[11px] leading-snug font-normal normal-case tracking-normal">
+              {info}
+            </TooltipContent>
+          </Tooltip>
+        )}
+      </div>
       <div className="text-lg font-semibold text-foreground">{value}</div>
     </div>
   );
