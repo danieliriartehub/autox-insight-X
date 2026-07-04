@@ -18,5 +18,17 @@ export default defineConfig({
     globals: true,
     include: ["tests/**/*.test.{ts,tsx}"],
     setupFiles: ["tests/setup.ts"],
+    coverage: {
+      provider: "v8",
+      reporter: ["text", "json", "html", "lcov"],
+      include: ["src/services/**", "src/lib/**", "src/hooks/**", "src/contexts/**"],
+      exclude: ["src/lib/api/example.functions.ts", "src/lib/lovable-error-reporting.ts"],
+      thresholds: {
+        statements: 30,
+        branches: 20,
+        functions: 26,
+        lines: 31,
+      },
+    },
   },
 });

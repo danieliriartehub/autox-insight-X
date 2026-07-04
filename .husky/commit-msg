@@ -1,0 +1,5 @@
+# MEJORA: commit-msg hook — commitlint valida mensajes conventional commit
+# RAZÓN: estandariza mensajes (feat/fix/chore/docs/test/ci) para changelog automático
+# IMPACTO: historial legible, automatización de releases
+
+npx --no -- commitlint --edit $1

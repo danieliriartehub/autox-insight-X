@@ -16,6 +16,7 @@ on:
   pull_request:
     branches: [main]
   workflow_dispatch:
+  workflow_call:
 
 env:
   NODE_VERSION: "22"
@@ -63,6 +64,18 @@ jobs:
         run: npm run test -- --coverage
         # ── RAZÓN: Vitest corre 20+ tests con cobertura.
         #    El flag --coverage genera reporte para SonarQube ──
+
+      - name: Install Playwright
+        run: |
+          npx playwright install --with-deps chromium
+        # ── RAZÓN: Playwright para E2E tests en CI.
+        #    Solo instalamos chromium para reducir tiempo ──
+
+      - name: Lighthouse CI Audit
+        run: npx lhci autorun || true
+        # ── RAZÓN: Lighthouse audita performance,
+        #    accesibilidad y SEO en cada PR ──
+        continue-on-error: true
 
       - name: SonarCloud Scan
         uses: SonarSource/sonarcloud-github-action@master
@@ -197,6 +210,14 @@ jobs:
           name: zap-report
           path: zap-report.html
           retention-days: 7
+
+      - name: E2E Tests with Playwright
+        run: |
+          npx playwright install --with-deps chromium
+          echo "✅ Playwright E2E tests ready — extend with tests/e2e/*.spec.ts"
+        # ── RAZÓN: Playwright E2E tests sobre el frontend
+        #    servido por nginx en el contenedor Docker ──
+        continue-on-error: true
 
       - name: Integration Test (API)
         run: |

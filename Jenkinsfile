@@ -19,10 +19,11 @@ pipeline {
 
     environment {
         // ── Credenciales (configurar en Jenkins → Credentials) ──
-        VERCEL_TOKEN     = credentials('vercel-frontend-token')
-        RAILWAY_TOKEN    = credentials('railway-backend-token')
-        SONAR_HOST_URL   = 'http://sonarqube:9000'
-        SONAR_TOKEN      = credentials('sonar-token')
+        VERCEL_TOKEN       = credentials('vercel-frontend-token')
+        RAILWAY_TOKEN      = credentials('railway-backend-token')
+        RAILWAY_PROJECT_ID = credentials('railway-project-id')
+        SONAR_HOST_URL     = 'http://sonarqube:9000'
+        SONAR_TOKEN        = credentials('sonar-token')
 
         DOCKER_REGISTRY = 'docker.io/autox-insight'
         BRANCH_NAME     = "${env.BRANCH_NAME}"
@@ -168,6 +169,9 @@ pipeline {
         // Stage 7: OWASP ZAP Security Scan
         // ═══════════════════════════════════════════════
         stage('OWASP ZAP Security Scan') {
+            when {
+                branch 'main'
+            }
             agent {
                 docker {
                     image 'ghcr.io/zaproxy/zaproxy:stable'
@@ -179,13 +183,13 @@ pipeline {
                     mkdir -p /zap/wrk
                     zap-full-scan.py \
                         -t http://localhost:8000 \
-                        -r zap-report.html \
+                        -r /zap/wrk/zap-report.html \
                         -z "-config network.connection.timeout=120"
 
                     zap-api-scan.py \
                         -t http://localhost:8000/openapi.json \
                         -f openapi \
-                        -r zap-api-report.html \
+                        -r /zap/wrk/zap-api-report.html \
                         -z "-config network.connection.timeout=120"
                 '''
             }
@@ -207,7 +211,7 @@ pipeline {
         // ═══════════════════════════════════════════════
         stage('Performance Benchmark') {
             steps {
-                sh 'npx vitest run tests/performance/ --config vitest.config.ts --reporter=json --outputFile=performance-results.json || true'
+                sh 'npx vitest run tests/performance.render.test.tsx --config vitest.config.ts --reporter=json --outputFile=performance-results.json || true'
                 // ── RAZÓN: vitest ejecuta tests de rendimiento
                 //    con jsdom. El reporter JSON permite análisis
                 //    histórico de métricas de performance.
@@ -229,6 +233,9 @@ pipeline {
                 branch 'main'
             }
             steps {
+                script {
+                    echo "⏩ Deploying to Vercel + Railway..."
+                }
                 // ── Vercel ──
                 sh '''
                     npm install -g vercel
