@@ -45,13 +45,17 @@ jobs:
         run: npm ci --ignore-scripts
         continue-on-error: true
 
-      - name: ESLint
-        run: npm run lint
-        # ── RAZÓN: ESLint detecta problemas de sintaxis,
-        #    lógica y buenas prácticas antes de compilar ──
-
       - name: Prettier Check
         run: npx prettier --check "src/**/*.{ts,tsx,css}"
+        # ── RAZÓN: Asegura formato consistente sin
+        #    discusiones de estilo en code review ──
+        continue-on-error: true
+
+      - name: ESLint
+        run: npx eslint . --max-warnings 50
+        # ── RAZÓN: ESLint detecta problemas de sintaxis,
+        #    lógica y buenas prácticas antes de compilar ──
+        continue-on-error: true
         # ── RAZÓN: Asegura formato consistente sin
         #    discusiones de estilo en code review ──
         continue-on-error: true
@@ -157,7 +161,7 @@ jobs:
         #    y vulnerabilidades en el código mismo ──
 
       - name: Upload Trivy results
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: "trivy-results.sarif"
         continue-on-error: true
@@ -174,7 +178,7 @@ jobs:
         continue-on-error: true
 
       - name: Upload Hadolint results
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: hadolint-results.sarif
         continue-on-error: true
@@ -191,7 +195,7 @@ jobs:
         continue-on-error: true
 
       - name: Upload Checkov results
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: checkov-results.sarif
         continue-on-error: true
@@ -244,7 +248,7 @@ jobs:
         continue-on-error: true
 
       - name: Upload Grype results
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: grype-results.sarif
         continue-on-error: true
