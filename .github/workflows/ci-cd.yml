@@ -267,7 +267,7 @@ jobs:
         run: |
           echo "Waiting for backend..."
           for i in $(seq 1 30); do
-            curl -sf http://localhost:8000/health && echo " Backend ready" && break
+            curl -sf http://localhost:8000/api/v1/health && echo " Backend ready" && break
             echo "Attempt $i/30..."
             sleep 2
           done
@@ -312,7 +312,7 @@ jobs:
 
       - name: Integration Test (API)
         run: |
-          RESPONSE=$(curl -s -X POST http://localhost:8000/predict \
+          RESPONSE=$(curl -s -X POST http://localhost:8000/api/v1/ml/predict \
             -H "Content-Type: application/json" \
             -d '{"codigo_repuesto":"FILTRO01","mes":6,"km":15000}')
           echo "API Response: $RESPONSE"
@@ -371,7 +371,7 @@ jobs:
           echo "Waiting for production backend..."
           sleep 15
           curl --retry 10 --retry-delay 10 \
-            https://autox-insight-backend-production.up.railway.app/health
+            https://autox-insight-backend-production.up.railway.app/api/v1/health
         # ── RAZÓN: Verifica que el deploy fue exitoso
         #    consultando el health endpoint real ──
 

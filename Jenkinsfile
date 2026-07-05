@@ -145,12 +145,12 @@ pipeline {
 
                     # Esperar a que los servicios estén listos
                     for i in $(seq 1 20); do
-                        curl -sf http://localhost:8000/health && break
+                        curl -sf http://localhost:8000/api/v1/health && break
                         sleep 2
                     done
 
                     # Test de predicción
-                    curl -s -X POST http://localhost:8000/predict \
+                    curl -s -X POST http://localhost:8000/api/v1/ml/predict \
                         -H "Content-Type: application/json" \
                         -d '{"codigo_repuesto":"FILTRO01","mes":6,"km":15000}'
 
