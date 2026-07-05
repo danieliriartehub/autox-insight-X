@@ -41,7 +41,7 @@ services:
       - SUPABASE_URL=${SUPABASE_URL:-https://placeholder.supabase.co}
       - SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY:-placeholder}
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health"]
       interval: 15s
       timeout: 5s
       start_period: 15s

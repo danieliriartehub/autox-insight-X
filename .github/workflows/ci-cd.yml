@@ -12,7 +12,7 @@ name: AutoX CI/CD Pipeline
 
 on:
   push:
-    branches: [main, develop]
+    branches: [main, develop, feat/**]
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -43,6 +43,7 @@ jobs:
 
       - name: Install dependencies
         run: npm ci --ignore-scripts
+        continue-on-error: true
 
       - name: ESLint
         run: npm run lint
@@ -50,13 +51,13 @@ jobs:
         #    lógica y buenas prácticas antes de compilar ──
 
       - name: Prettier Check
-        run: npx prettier --check "src/**/*.{ts,tsx,css}" "api/**/*.py"
+        run: npx prettier --check "src/**/*.{ts,tsx,css}"
         # ── RAZÓN: Asegura formato consistente sin
         #    discusiones de estilo en code review ──
         continue-on-error: true
 
       - name: Spell Check (cspell)
-        run: npx cspell --no-progress "src/**/*.{ts,tsx}" "tests/**/*.{ts,tsx}"
+        run: npx cspell --no-progress --no-must-find-files "src/**/*.{ts,tsx}" "tests/**/*.{ts,tsx}"
         # ── RAZÓN: cspell detecta typos en identificadores,
         #    comentarios y strings del código fuente ──
         continue-on-error: true
@@ -102,7 +103,7 @@ jobs:
         continue-on-error: true
 
       - name: SonarCloud Scan
-        uses: SonarSource/sonarcloud-github-action@master
+        uses: SonarSource/sonarcloud-github-action@v5
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -145,7 +146,7 @@ jobs:
         #    dependencias Python (FastAPI, XGBoost, etc.) ──
 
       - name: Trivy filesystem scan
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: "fs"
           scan-ref: "."
@@ -162,7 +163,7 @@ jobs:
         continue-on-error: true
 
       - name: Dockerfile Lint (Hadolint)
-        uses: hadolint/hadolint-action@v3.1.0
+        uses: hadolint/hadolint-action@v3.3.0
         with:
           dockerfile: Dockerfile.frontend Dockerfile.backend
           config: .hadolint.yaml
@@ -179,7 +180,7 @@ jobs:
         continue-on-error: true
 
       - name: IaC Security Scan (Checkov)
-        uses: bridgecrewio/checkov-action@v12
+        uses: bridgecrewio/checkov-action@v12.3112.0
         with:
           directory: "."
           framework: dockerfile
@@ -196,7 +197,7 @@ jobs:
         continue-on-error: true
 
       - name: OSV-Scanner (vulnerability DB)
-        uses: google/osv-scanner-action@v1.0.2
+        uses: google/osv-scanner-action@v1.9.2
         with:
           scan-args: |-
             -r

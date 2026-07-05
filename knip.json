@@ -1,0 +1,6 @@
+{
+  "entry": ["src/main.tsx", "src/routes/**/*.tsx", "src/routeTree.gen.ts"],
+  "project": ["src/**/*.{ts,tsx}", "tests/**/*.{ts,tsx}"],
+  "ignoreDependencies": ["@commitlint/*", "cspell", "knip", "madge", "depcheck", "husky", "lint-staged", "@lovable.dev/vite-tanstack-config"],
+  "ignore": ["src/routeTree.gen.ts", "tests/**", "vite.config.ts", "vitest.config.ts"]
+}
