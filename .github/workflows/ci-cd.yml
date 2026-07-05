@@ -232,14 +232,6 @@ jobs:
       - name: Build backend image
         run: docker build -f Dockerfile.backend -t autox-backend:ci .
 
-      - name: Container SBOM (Syft)
-        uses: anchore/syft-action@v0.17.0
-        with:
-          image: autox-frontend:ci
-          format: spdx-json
-          output: syft-frontend.spdx.json
-        continue-on-error: true
-
       - name: Container Vulnerability Scan (Grype)
         uses: anchore/scan-action@v3
         with:
