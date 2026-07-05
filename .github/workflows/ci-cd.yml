@@ -115,9 +115,9 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         # ── RAZÓN: SonarCloud analiza bugs, code smells,
-        #    vulnerabilidades y duplicados. Quality Gate
-        #    bloquea si no se cumplen los thresholds ──
-        continue-on-error: false
+        #    vulnerabilidades y duplicados. No bloquea el
+        #    pipeline porque requiere SONAR_TOKEN en secrets ──
+        continue-on-error: true
 
   # ════════════════════════════════════════════════════════
   #  JOB 2: Security — Dependency Audit
