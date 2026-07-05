@@ -53,11 +53,6 @@ jobs:
 
       - name: ESLint
         run: npx eslint . --max-warnings 50
-        # ── RAZÓN: ESLint detecta problemas de sintaxis,
-        #    lógica y buenas prácticas antes de compilar ──
-        continue-on-error: true
-        # ── RAZÓN: Asegura formato consistente sin
-        #    discusiones de estilo en code review ──
         continue-on-error: true
 
       - name: Spell Check (cspell)
