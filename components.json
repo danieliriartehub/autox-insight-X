@@ -1,7 +1,3 @@
-// ── Configuración de shadcn/ui ────────────────────────────────────────────────
-// Define el estilo (New York), colores base, alias de importación
-// y librería de iconos (lucide-react).
-
 {
   "$schema": "https://ui.shadcn.com/schema.json",
   "style": "new-york",

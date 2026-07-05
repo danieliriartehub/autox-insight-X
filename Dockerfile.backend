@@ -23,7 +23,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 COPY --from=builder /install /usr/local
 COPY api/ api/
-COPY ml/ ml/
 
 RUN chown -R appuser:appuser /app
 USER appuser
