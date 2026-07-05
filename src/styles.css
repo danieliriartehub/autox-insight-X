@@ -1,3 +1,9 @@
+/* ── Estilos globales de AutoX Insight ─────────────────────────────────────────
+ * Paleta corporativa bpA Motors (azul corporativo #0D47A1).
+ * Variables CSS para modo claro y oscuro usando OKLCH.
+ * Integración con Tailwind CSS v4 + tw-animate-css para animaciones.
+ */
+
 @import "tailwindcss" source(none);
 @source "../src";
 @import "tw-animate-css";
@@ -54,20 +60,20 @@
   --radius: 0.5rem;
 
   /* Corporate palette — bpA Motors */
-  --background: oklch(0.985 0.005 240);          /* #F5F7FA-ish */
-  --foreground: oklch(0.25 0.03 250);            /* #1E1E1E / 37474F */
+  --background: oklch(0.985 0.005 240); /* #F5F7FA-ish */
+  --foreground: oklch(0.25 0.03 250); /* #1E1E1E / 37474F */
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.25 0.03 250);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.25 0.03 250);
 
-  --primary: oklch(0.39 0.18 261);               /* #0D47A1 azul corporativo */
+  --primary: oklch(0.39 0.18 261); /* #0D47A1 azul corporativo */
   --primary-foreground: oklch(1 0 0);
   --secondary: oklch(0.93 0.02 240);
   --secondary-foreground: oklch(0.3 0.05 255);
   --muted: oklch(0.96 0.008 240);
   --muted-foreground: oklch(0.5 0.02 245);
-  --accent: oklch(0.72 0.14 245);                /* #42A5F5 azul claro */
+  --accent: oklch(0.72 0.14 245); /* #42A5F5 azul claro */
   --accent-foreground: oklch(1 0 0);
 
   --destructive: oklch(0.6 0.22 27);
@@ -89,7 +95,7 @@
   --chart-4: oklch(0.72 0.14 245);
   --chart-5: oklch(0.82 0.09 240);
 
-  --sidebar: oklch(0.24 0.06 258);               /* azul muy oscuro */
+  --sidebar: oklch(0.24 0.06 258); /* azul muy oscuro */
   --sidebar-foreground: oklch(0.92 0.01 240);
   --sidebar-primary: oklch(0.72 0.14 245);
   --sidebar-primary-foreground: oklch(1 0 0);
@@ -127,7 +133,9 @@
 }
 
 @layer base {
-  * { border-color: var(--color-border); }
+  * {
+    border-color: var(--color-border);
+  }
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);

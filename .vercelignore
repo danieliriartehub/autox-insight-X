@@ -1,3 +1,6 @@
+# ── Archivos ignorados por Vercel ──────────────────────────────────────────────
+# Excluye backend Python y datos del build del frontend.
+
 api/
 ml/
 etl/

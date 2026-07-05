@@ -1,3 +1,4 @@
+// ── Componente Card ── Contenedor con encabezado, contenido y pie
 import * as React from "react";
 
 import { cn } from "@/lib/utils";

@@ -1,3 +1,6 @@
+// ── Configuración del proyecto Lovable ────────────────────────────────────────
+// Template base usado para generar el proyecto en Lovable.dev.
+
 {
   "schemaVersion": 1,
   "template": "tanstack_start_ts_2026-05-29"

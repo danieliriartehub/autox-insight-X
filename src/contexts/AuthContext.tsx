@@ -1,23 +1,12 @@
-/**
- * AuthContext — Gestión global del estado de autenticación.
- *
- * Principios de seguridad aplicados:
- * - El JWT vive SOLO en la cookie HttpOnly del navegador.
- *   El frontend nunca lo lee, almacena ni manipula.
- * - El estado del usuario (`user`) se guarda en memoria React (Context),
- *   que se limpia al cerrar la pestaña. Para persistir entre refreshes
- *   se consulta GET /me al montar el provider.
- * - localStorage / sessionStorage: NO se usan para nada sensible.
- */
+// ── AuthContext — Gestión global de autenticación ──────────────────────────────
+// Principios de seguridad:
+// - El JWT vive SOLO en la cookie HttpOnly del navegador.
+//   El frontend nunca lo lee, almacena ni manipula.
+// - El estado del usuario se guarda en memoria React (Context),
+//   que se limpia al cerrar la pestaña.
+// - localStorage / sessionStorage: NO se usan para nada sensible.
 
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useState,
-  type ReactNode,
-} from "react";
+import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 import { authApi, type UserPublic } from "@/lib/api";
 
 // ── Tipos ─────────────────────────────────────────────────────────────────────

@@ -1,3 +1,4 @@
+// ── Componente Tooltip ── Información contextual al hover
 "use client";
 
 import * as React from "react";

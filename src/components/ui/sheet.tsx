@@ -1,3 +1,4 @@
+// ── Componente Sheet ── Panel lateral deslizable
 "use client";
 
 import * as React from "react";

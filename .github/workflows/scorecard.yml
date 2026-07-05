@@ -1,0 +1,39 @@
+# MEJORA: OpenSSF Scorecard — evaluación de seguridad del repositorio
+# RAZÓN: Proporciona métricas objetivas de seguridad (puntuación 0-10)
+# IMPACTO: Visibilidad de riesgos de seguridad en el ciclo de vida del software
+
+name: OpenSSF Scorecard
+on:
+  schedule:
+    - cron: "0 0 * * 1"
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+  security-events: write
+  actions: read
+
+jobs:
+  analysis:
+    name: Scorecard analysis
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Run Scorecard
+        uses: ossf/scorecard-action@v2.4.0
+        with:
+          results_file: results.sarif
+          results_format: sarif
+          publish_results: true
+
+      - name: Upload SARIF results
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: results.sarif

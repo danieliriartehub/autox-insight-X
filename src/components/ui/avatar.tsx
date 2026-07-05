@@ -1,3 +1,4 @@
+// ── Componente Avatar ── Imagen de perfil con iniciales de respaldo
 "use client";
 
 import * as React from "react";

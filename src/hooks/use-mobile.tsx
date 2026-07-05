@@ -1,3 +1,7 @@
+// ── Hook: useIsMobile ─────────────────────────────────────────────────────────
+// Detecta si la ventana es menor a 768px (breakpoint móvil de Tailwind).
+// Usado por el Sidebar para alternar entre modo expandido y contraído.
+
 import * as React from "react";
 
 const MOBILE_BREAKPOINT = 768;

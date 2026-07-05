@@ -1,3 +1,4 @@
+// ── Componente Label ── Etiqueta para campos de formulario
 "use client";
 
 import * as React from "react";

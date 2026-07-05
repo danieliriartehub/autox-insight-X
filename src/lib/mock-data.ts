@@ -1,4 +1,7 @@
-// Mock data simulando datos realistas del sector automotriz
+// ── Mock Data ─────────────────────────────────────────────────────────────────
+// Datos de prueba que simulan información realista del sector automotriz.
+// Usados como fallback cuando Supabase no está disponible o durante
+// el desarrollo local sin backend conectado.
 export const KPIS = {
   otsAbiertas: 47,
   otsCerradas: 312,
@@ -42,14 +45,86 @@ export const nivelInventario = [
 export type OTEstado = "Abierta" | "En Proceso" | "Cerrada" | "Pendiente Repuesto";
 
 export const ordenesTrabajo = [
-  { id: "OT-2025-0421", fecha: "2025-05-28", vehiculo: "Toyota Hilux 2021", cliente: "Logística Andina SA", estado: "En Proceso" as OTEstado, mecanico: "C. Ramírez", marca: "Toyota", modelo: "Hilux" },
-  { id: "OT-2025-0422", fecha: "2025-05-28", vehiculo: "Mazda CX-5 2022", cliente: "Pedro Salinas", estado: "Abierta" as OTEstado, mecanico: "J. Vargas", marca: "Mazda", modelo: "CX-5" },
-  { id: "OT-2025-0423", fecha: "2025-05-29", vehiculo: "Hyundai Tucson 2020", cliente: "Marta Ríos", estado: "Pendiente Repuesto" as OTEstado, mecanico: "L. Mendoza", marca: "Hyundai", modelo: "Tucson" },
-  { id: "OT-2025-0424", fecha: "2025-05-29", vehiculo: "Kia Sportage 2023", cliente: "TransPacífico", estado: "Cerrada" as OTEstado, mecanico: "C. Ramírez", marca: "Kia", modelo: "Sportage" },
-  { id: "OT-2025-0425", fecha: "2025-05-30", vehiculo: "Nissan Frontier 2019", cliente: "Minera Sur SAC", estado: "En Proceso" as OTEstado, mecanico: "A. Torres", marca: "Nissan", modelo: "Frontier" },
-  { id: "OT-2025-0426", fecha: "2025-05-30", vehiculo: "Chevrolet Onix 2022", cliente: "Lucía Pérez", estado: "Abierta" as OTEstado, mecanico: "J. Vargas", marca: "Chevrolet", modelo: "Onix" },
-  { id: "OT-2025-0427", fecha: "2025-05-31", vehiculo: "Ford Ranger 2021", cliente: "Constructora Lima", estado: "Cerrada" as OTEstado, mecanico: "L. Mendoza", marca: "Ford", modelo: "Ranger" },
-  { id: "OT-2025-0428", fecha: "2025-05-31", vehiculo: "Toyota Corolla 2020", cliente: "Diego Castillo", estado: "En Proceso" as OTEstado, mecanico: "A. Torres", marca: "Toyota", modelo: "Corolla" },
+  {
+    id: "OT-2025-0421",
+    fecha: "2025-05-28",
+    vehiculo: "Toyota Hilux 2021",
+    cliente: "Logística Andina SA",
+    estado: "En Proceso" as OTEstado,
+    mecanico: "C. Ramírez",
+    marca: "Toyota",
+    modelo: "Hilux",
+  },
+  {
+    id: "OT-2025-0422",
+    fecha: "2025-05-28",
+    vehiculo: "Mazda CX-5 2022",
+    cliente: "Pedro Salinas",
+    estado: "Abierta" as OTEstado,
+    mecanico: "J. Vargas",
+    marca: "Mazda",
+    modelo: "CX-5",
+  },
+  {
+    id: "OT-2025-0423",
+    fecha: "2025-05-29",
+    vehiculo: "Hyundai Tucson 2020",
+    cliente: "Marta Ríos",
+    estado: "Pendiente Repuesto" as OTEstado,
+    mecanico: "L. Mendoza",
+    marca: "Hyundai",
+    modelo: "Tucson",
+  },
+  {
+    id: "OT-2025-0424",
+    fecha: "2025-05-29",
+    vehiculo: "Kia Sportage 2023",
+    cliente: "TransPacífico",
+    estado: "Cerrada" as OTEstado,
+    mecanico: "C. Ramírez",
+    marca: "Kia",
+    modelo: "Sportage",
+  },
+  {
+    id: "OT-2025-0425",
+    fecha: "2025-05-30",
+    vehiculo: "Nissan Frontier 2019",
+    cliente: "Minera Sur SAC",
+    estado: "En Proceso" as OTEstado,
+    mecanico: "A. Torres",
+    marca: "Nissan",
+    modelo: "Frontier",
+  },
+  {
+    id: "OT-2025-0426",
+    fecha: "2025-05-30",
+    vehiculo: "Chevrolet Onix 2022",
+    cliente: "Lucía Pérez",
+    estado: "Abierta" as OTEstado,
+    mecanico: "J. Vargas",
+    marca: "Chevrolet",
+    modelo: "Onix",
+  },
+  {
+    id: "OT-2025-0427",
+    fecha: "2025-05-31",
+    vehiculo: "Ford Ranger 2021",
+    cliente: "Constructora Lima",
+    estado: "Cerrada" as OTEstado,
+    mecanico: "L. Mendoza",
+    marca: "Ford",
+    modelo: "Ranger",
+  },
+  {
+    id: "OT-2025-0428",
+    fecha: "2025-05-31",
+    vehiculo: "Toyota Corolla 2020",
+    cliente: "Diego Castillo",
+    estado: "En Proceso" as OTEstado,
+    mecanico: "A. Torres",
+    marca: "Toyota",
+    modelo: "Corolla",
+  },
 ];
 
 export const detalleOT = {
@@ -66,14 +141,86 @@ export const detalleOT = {
 export type StockEstado = "Óptimo" | "Bajo" | "Crítico" | "Exceso";
 
 export const inventario = [
-  { codigo: "FLT-AC-0021", repuesto: "Filtro de aceite", categoria: "Filtros", marca: "Toyota", stock: 84, min: 30, max: 150, estado: "Óptimo" as StockEstado },
-  { codigo: "PAS-FR-T-09", repuesto: "Pastillas freno delantero", categoria: "Frenos", marca: "Toyota", stock: 18, min: 25, max: 100, estado: "Bajo" as StockEstado },
-  { codigo: "ACE-5W30-04", repuesto: "Aceite sintético 5W30 4L", categoria: "Aceites", marca: "Mobil", stock: 220, min: 80, max: 200, estado: "Exceso" as StockEstado },
-  { codigo: "AMR-DEL-22", repuesto: "Amortiguador delantero", categoria: "Suspensión", marca: "KYB", stock: 6, min: 15, max: 60, estado: "Crítico" as StockEstado },
-  { codigo: "BAT-12V-70", repuesto: "Batería 12V 70Ah", categoria: "Eléctrico", marca: "Bosch", stock: 32, min: 12, max: 50, estado: "Óptimo" as StockEstado },
-  { codigo: "FLT-AIR-15", repuesto: "Filtro de aire", categoria: "Filtros", marca: "Mann", stock: 55, min: 20, max: 120, estado: "Óptimo" as StockEstado },
-  { codigo: "BUJ-IRD-04", repuesto: "Bujía iridio", categoria: "Motor", marca: "NGK", stock: 9, min: 40, max: 200, estado: "Crítico" as StockEstado },
-  { codigo: "COR-DIS-08", repuesto: "Correa de distribución", categoria: "Motor", marca: "Gates", stock: 14, min: 10, max: 40, estado: "Óptimo" as StockEstado },
+  {
+    codigo: "FLT-AC-0021",
+    repuesto: "Filtro de aceite",
+    categoria: "Filtros",
+    marca: "Toyota",
+    stock: 84,
+    min: 30,
+    max: 150,
+    estado: "Óptimo" as StockEstado,
+  },
+  {
+    codigo: "PAS-FR-T-09",
+    repuesto: "Pastillas freno delantero",
+    categoria: "Frenos",
+    marca: "Toyota",
+    stock: 18,
+    min: 25,
+    max: 100,
+    estado: "Bajo" as StockEstado,
+  },
+  {
+    codigo: "ACE-5W30-04",
+    repuesto: "Aceite sintético 5W30 4L",
+    categoria: "Aceites",
+    marca: "Mobil",
+    stock: 220,
+    min: 80,
+    max: 200,
+    estado: "Exceso" as StockEstado,
+  },
+  {
+    codigo: "AMR-DEL-22",
+    repuesto: "Amortiguador delantero",
+    categoria: "Suspensión",
+    marca: "KYB",
+    stock: 6,
+    min: 15,
+    max: 60,
+    estado: "Crítico" as StockEstado,
+  },
+  {
+    codigo: "BAT-12V-70",
+    repuesto: "Batería 12V 70Ah",
+    categoria: "Eléctrico",
+    marca: "Bosch",
+    stock: 32,
+    min: 12,
+    max: 50,
+    estado: "Óptimo" as StockEstado,
+  },
+  {
+    codigo: "FLT-AIR-15",
+    repuesto: "Filtro de aire",
+    categoria: "Filtros",
+    marca: "Mann",
+    stock: 55,
+    min: 20,
+    max: 120,
+    estado: "Óptimo" as StockEstado,
+  },
+  {
+    codigo: "BUJ-IRD-04",
+    repuesto: "Bujía iridio",
+    categoria: "Motor",
+    marca: "NGK",
+    stock: 9,
+    min: 40,
+    max: 200,
+    estado: "Crítico" as StockEstado,
+  },
+  {
+    codigo: "COR-DIS-08",
+    repuesto: "Correa de distribución",
+    categoria: "Motor",
+    marca: "Gates",
+    stock: 14,
+    min: 10,
+    max: 40,
+    estado: "Óptimo" as StockEstado,
+  },
 ];
 
 export const movimientos = [
@@ -106,8 +253,14 @@ export const fallasCatalogo = [
 ];
 
 export const serviciosCatalogo = [
-  { tipo: "Preventivo", items: ["Cambio de aceite", "Cambio de filtros", "Alineamiento", "Balanceo"] },
-  { tipo: "Correctivo", items: ["Reparación de frenos", "Cambio de amortiguadores", "Reparación de motor"] },
+  {
+    tipo: "Preventivo",
+    items: ["Cambio de aceite", "Cambio de filtros", "Alineamiento", "Balanceo"],
+  },
+  {
+    tipo: "Correctivo",
+    items: ["Reparación de frenos", "Cambio de amortiguadores", "Reparación de motor"],
+  },
   { tipo: "Planchado y Pintura", items: ["Reparación de chasis", "Pintura completa", "Pulido"] },
   { tipo: "Embellecimiento", items: ["Detallado interior", "Polarizado", "Encerado premium"] },
 ];
@@ -134,8 +287,20 @@ export const consumoPorMarca = [
 export const prediccionRepuestos = [
   { repuesto: "Filtro de aceite", demanda: 450, confianza: 92, recomendado: 480, riesgo: "Bajo" },
   { repuesto: "Aceite 5W30 4L", demanda: 410, confianza: 89, recomendado: 430, riesgo: "Bajo" },
-  { repuesto: "Pastillas freno delantero", demanda: 280, confianza: 86, recomendado: 310, riesgo: "Medio" },
-  { repuesto: "Amortiguador delantero", demanda: 95, confianza: 78, recomendado: 110, riesgo: "Alto" },
+  {
+    repuesto: "Pastillas freno delantero",
+    demanda: 280,
+    confianza: 86,
+    recomendado: 310,
+    riesgo: "Medio",
+  },
+  {
+    repuesto: "Amortiguador delantero",
+    demanda: 95,
+    confianza: 78,
+    recomendado: 110,
+    riesgo: "Alto",
+  },
   { repuesto: "Bujía iridio", demanda: 180, confianza: 84, recomendado: 200, riesgo: "Alto" },
   { repuesto: "Correa distribución", demanda: 42, confianza: 81, recomendado: 50, riesgo: "Medio" },
   { repuesto: "Batería 12V 70Ah", demanda: 38, confianza: 88, recomendado: 45, riesgo: "Bajo" },

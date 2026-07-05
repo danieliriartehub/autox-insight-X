@@ -1,7 +1,12 @@
+# ── Archivos ignorados por Git ─────────────────────────────────────────────────
+# Entorno, dependencias, builds, editores y archivos de sistema.
+
 # Environment
 .env
 .env.local
 .env.*.local
+.env.agents
+.eng.agents
 
 # Logs
 logs
@@ -20,6 +25,14 @@ dist-ssr
 .tanstack/**
 .nitro
 *.local
+
+# Reports
+coverage/
+playwright-report/
+test-results/
+security-reports/
+zap-reports/
+performance-results.json
 
 # Wrangler / Cloudflare
 .wrangler/

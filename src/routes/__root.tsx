@@ -1,3 +1,9 @@
+// ──────────────────────────────────────────────────────────
+//  Ruta raíz (layout principal) — TanStack Router
+//  Provee el layout global con autenticación, sidebar, y
+//  manejo de errores. Es el contenedor de toda la app.
+// ──────────────────────────────────────────────────────────
+
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   Outlet,
@@ -15,6 +21,7 @@ import { AppSidebar } from "@/components/AppSidebar";
 import { Toaster } from "@/components/ui/sonner";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 
+// ── Componente de página 404 ─────────────────────────────
 function NotFoundComponent() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
@@ -32,6 +39,7 @@ function NotFoundComponent() {
   );
 }
 
+// ── Componente de error (error boundary del router) ─────
 function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   console.error(error);
   const router = useRouter();
@@ -48,7 +56,10 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
         </p>
         <div className="mt-6 flex flex-wrap justify-center gap-2">
           <button
-            onClick={() => { router.invalidate(); reset(); }}
+            onClick={() => {
+              router.invalidate();
+              reset();
+            }}
             className="inline-flex rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
           >
             Reintentar
@@ -65,12 +76,14 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   );
 }
 
+// ── Definición de la ruta raíz ───────────────────────────
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
   component: RootComponent,
   notFoundComponent: NotFoundComponent,
   errorComponent: ErrorComponent,
 });
 
+// ── Componente raíz: provee QueryClient + Auth ──────────
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
 
@@ -83,6 +96,8 @@ function RootComponent() {
   );
 }
 
+// ── Guardia de autenticación ─────────────────────────────
+// Redirige a login si no hay sesión, y a dashboard si ya hay sesión.
 function AuthGuard() {
   const { isLoading, isAuthenticated } = useAuth();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
@@ -111,6 +126,7 @@ function AuthGuard() {
       {isPublic ? (
         <Outlet />
       ) : (
+        // Layout con sidebar para rutas privadas
         <SidebarProvider>
           <div className="flex min-h-screen w-full bg-background">
             <AppSidebar />

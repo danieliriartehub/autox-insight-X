@@ -1,3 +1,4 @@
+// ── Componente InputOTP ── Campo de código OTP segmentado
 import * as React from "react";
 import { OTPInput, OTPInputContext } from "input-otp";
 import { Minus } from "lucide-react";

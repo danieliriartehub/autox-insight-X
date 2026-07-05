@@ -1,12 +1,20 @@
+// ── Servicios de IA / ML ──────────────────────────────────────────────────────
+// Cliente HTTP para el backend Railway de AutoX Insight.
+// Implementa los endpoints de predicción (RF-09), confianza (RF-10),
+// estado del modelo (RF-11), reentrenamiento (RF-15) y OCs inteligentes (RF-12).
+
 import { supabase } from "@/lib/supabase";
 
-const API_BASE = (import.meta.env.VITE_API_URL as string | undefined)
-  ?? "https://autox-insight-backend-production.up.railway.app";
+const API_BASE =
+  (import.meta.env.VITE_API_URL as string | undefined) ??
+  "https://autox-insight-backend-production.up.railway.app";
 
 // ── Auth helper ─────────────────────────────────────────────────────────────
 // Los endpoints protegidos (retrain, generar OC) exigen el JWT de Supabase.
+// La sesión se obtiene de la cookie HttpOnly gestionada por Supabase Auth.
 async function authHeaders(): Promise<Record<string, string>> {
-  const { data } = await supabase.auth.getSession();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data } = await (supabase.auth as any).getSession();
   const token = data.session?.access_token;
   return token
     ? { "Content-Type": "application/json", Authorization: `Bearer ${token}` }

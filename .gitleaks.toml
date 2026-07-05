@@ -1,0 +1,16 @@
+# ── Configuración de Gitleaks ─────────────────────────────────────────────────
+# Excluye archivos con secretos falsos positivos o plantillas.
+
+[allowlist]
+  description = "Archivos permitidos para Gitleaks"
+  paths = [
+    ".eng.agents",
+    ".env.example",
+    ".env.agents",
+    "node_modules/",
+    "coverage/",
+    "security-reports/",
+    "zap-reports/",
+    "package-lock.json",
+    "bun.lock",
+  ]

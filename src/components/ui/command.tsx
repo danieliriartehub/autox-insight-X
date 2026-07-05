@@ -1,3 +1,4 @@
+// ── Componente Command ── Paleta de comandos tipo ⌘K
 "use client";
 
 import * as React from "react";

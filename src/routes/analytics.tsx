@@ -1,25 +1,53 @@
+// ──────────────────────────────────────────────────────────
+//  Página: Analytics — Consumo de Repuestos
+//  Análisis cruzado con gráficos: repuestos más consumidos,
+//  consumo por tipo de OT, estacionalidad y distribución.
+// ──────────────────────────────────────────────────────────
+
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import {
-  Bar, BarChart, CartesianGrid, Cell, Legend, Line, LineChart, Pie, PieChart,
-  ResponsiveContainer, Tooltip, XAxis, YAxis,
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  Legend,
+  Line,
+  LineChart,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
 } from "recharts";
 
 import { TopBar } from "@/components/TopBar";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select";
 import {
-  useConsumoMensual, useConsumoPorTipo, useDistribucionServicios, useRepuestosMasConsumidos,
+  useConsumoMensual,
+  useConsumoPorTipo,
+  useDistribucionServicios,
+  useRepuestosMasConsumidos,
 } from "@/hooks/useData";
 
+// ── Definición de la ruta ─────────────────────────────────
 export const Route = createFileRoute("/analytics")({
   head: () => ({
     meta: [
       { title: "Analytics — Consumo de Repuestos | bpA Motors SCM" },
-      { name: "description", content: "Análisis cruzado de consumo de repuestos por tipo de servicio y temporada." },
+      {
+        name: "description",
+        content: "Análisis cruzado de consumo de repuestos por tipo de servicio y temporada.",
+      },
     ],
   }),
   component: AnalyticsPage,
@@ -28,8 +56,10 @@ export const Route = createFileRoute("/analytics")({
 const PIE_COLORS = ["#0D47A1", "#1565C0", "#42A5F5", "#90CAF9"];
 
 function AnalyticsPage() {
+  // Filtro de temporada (anual / Q1-Q4)
   const [temporada, setTemporada] = useState("anual");
 
+  // Data fetching desde Supabase
   const { data: consumoMensual } = useConsumoMensual();
   const { data: consumoPorTipo } = useConsumoPorTipo();
   const { data: distribucionServicios } = useDistribucionServicios();
@@ -42,13 +72,21 @@ function AnalyticsPage() {
 
   return (
     <>
-      <TopBar title="Analytics" subtitle="Análisis cruzado · Consumo de repuestos por tipo y temporada" />
+      <TopBar
+        title="Analytics"
+        subtitle="Análisis cruzado · Consumo de repuestos por tipo y temporada"
+      />
       <main className="flex-1 space-y-6 p-6">
+        {/* ── Filtros dinámicos ──────────────────────────── */}
         <Card>
           <CardContent className="flex flex-wrap items-center gap-3 p-4">
-            <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Filtros dinámicos</span>
+            <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Filtros dinámicos
+            </span>
             <Select value={temporada} onValueChange={setTemporada}>
-              <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="w-44">
+                <SelectValue />
+              </SelectTrigger>
               <SelectContent>
                 <SelectItem value="anual">Año completo</SelectItem>
                 <SelectItem value="q1">Q1</SelectItem>
@@ -63,7 +101,9 @@ function AnalyticsPage() {
           </CardContent>
         </Card>
 
+        {/* ── Gráficos ─────────────────────────────────── */}
         <section className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          {/* Repuestos más consumidos (barras horizontales) */}
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Repuestos más consumidos</CardTitle>
@@ -74,14 +114,20 @@ function AnalyticsPage() {
                 <BarChart data={repuestos} layout="vertical" margin={{ left: 20 }}>
                   <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
                   <XAxis type="number" fontSize={12} stroke="#64748b" />
-                  <YAxis dataKey="repuesto" type="category" fontSize={10} stroke="#64748b" width={140} />
+                  <YAxis
+                    dataKey="repuesto"
+                    type="category"
+                    fontSize={10}
+                    stroke="#64748b"
+                    width={140}
+                  />
                   <Tooltip />
                   <Bar dataKey="consumo" fill="#1565C0" radius={[0, 4, 4, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </CardContent>
           </Card>
-
+          {/* Consumo por tipo de OT */}
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Consumo por tipo de OT</CardTitle>
@@ -99,7 +145,7 @@ function AnalyticsPage() {
               </ResponsiveContainer>
             </CardContent>
           </Card>
-
+          {/* Consumo por temporada (línea) */}
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Consumo por temporada</CardTitle>
@@ -113,12 +159,18 @@ function AnalyticsPage() {
                   <YAxis fontSize={12} stroke="#64748b" />
                   <Tooltip />
                   <Legend />
-                  <Line type="monotone" dataKey="consumo" name="Consumo" stroke="#0D47A1" strokeWidth={3} />
+                  <Line
+                    type="monotone"
+                    dataKey="consumo"
+                    name="Consumo"
+                    stroke="#0D47A1"
+                    strokeWidth={3}
+                  />
                 </LineChart>
               </ResponsiveContainer>
             </CardContent>
           </Card>
-
+          {/* Distribución por tipo de servicio (torta) */}
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Distribución por tipo de servicio</CardTitle>

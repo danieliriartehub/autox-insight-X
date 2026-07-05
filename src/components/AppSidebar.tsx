@@ -1,3 +1,9 @@
+// ──────────────────────────────────────────────────────────
+//  Componente: Barra lateral de navegación (Sidebar)
+//  Menú principal de la aplicación con enlaces a todas las
+//  secciones y botón de cierre de sesión.
+// ──────────────────────────────────────────────────────────
+
 import { Link, useRouterState, useNavigate } from "@tanstack/react-router";
 import {
   LayoutDashboard,
@@ -24,6 +30,7 @@ import {
 } from "@/components/ui/sidebar";
 import { useAuth } from "@/contexts/AuthContext";
 
+// Definición de los elementos de navegación
 const items = [
   { title: "Dashboard Ejecutivo", url: "/dashboard", icon: LayoutDashboard },
   { title: "Taller", url: "/taller", icon: Wrench },
@@ -45,6 +52,7 @@ export function AppSidebar() {
 
   return (
     <Sidebar collapsible="icon">
+      {/* Encabezado con logo y nombre del sistema */}
       <SidebarHeader className="border-b border-sidebar-border">
         <div className="flex items-center gap-2 px-2 py-3">
           <div className="flex h-9 w-9 items-center justify-center rounded-md bg-sidebar-primary text-sidebar-primary-foreground">
@@ -58,6 +66,8 @@ export function AppSidebar() {
           </div>
         </div>
       </SidebarHeader>
+
+      {/* Menú de navegación */}
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupLabel>Plataforma</SidebarGroupLabel>
@@ -65,7 +75,9 @@ export function AppSidebar() {
             <SidebarMenu>
               {items.map((item) => {
                 const isActive =
-                  item.url === "/dashboard" ? pathname === "/dashboard" : pathname.startsWith(item.url);
+                  item.url === "/dashboard"
+                    ? pathname === "/dashboard"
+                    : pathname.startsWith(item.url);
                 return (
                   <SidebarMenuItem key={item.title}>
                     <SidebarMenuButton asChild isActive={isActive} tooltip={item.title}>
@@ -81,6 +93,8 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
+
+      {/* Footer con botón de cerrar sesión */}
       <SidebarFooter className="border-t border-sidebar-border p-4">
         <button
           onClick={handleLogout}

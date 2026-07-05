@@ -1,20 +1,24 @@
-/**
- * PRUEBAS UNITARIAS — Servicios de IA (predict.ts).
- *
- * Prueban la construcción de requests y el parseo de respuestas de forma
- * aislada, con `fetch` mockeado (sin backend real).
- */
+// ── Pruebas unitarias de servicios IA ─────────────────────────────────────────
+// Verifica la construcción de requests HTTP y el parseo de respuestas
+// de predict.ts usando fetch mockeado (sin backend real).
+
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import {
-  fetchPrediction, fetchMLStatus, retrainModel,
-  fetchPurchaseSuggestions, generatePurchaseOrder,
+  fetchPrediction,
+  fetchMLStatus,
+  retrainModel,
+  fetchPurchaseSuggestions,
+  generatePurchaseOrder,
 } from "@/services/predict";
 
+// Helper: obtiene el fetch global para hacer assertions en los tests
 const g = globalThis as unknown as { fetch: ReturnType<typeof vi.fn> };
 
+// Helper: mockea fetch para que devuelva una respuesta controlada
 function mockFetchOnce(body: unknown, ok = true, status = 200) {
   g.fetch = vi.fn().mockResolvedValue({
-    ok, status,
+    ok,
+    status,
     json: async () => body,
   });
 }
@@ -26,19 +30,35 @@ beforeEach(() => {
 describe("fetchPrediction (RF-09/RF-10)", () => {
   it("envía POST con el payload correcto y devuelve la predicción", async () => {
     const fake = {
-      codigo_repuesto: "01001-01001", mes: 6, anio: 2026,
-      cantidad_estimada: 41, confianza: 0.95, alta_confiabilidad: true,
-      etiqueta_confianza: "Alta Confiabilidad", repuesto_conocido: true,
-      observaciones_historicas: 25, mae_referencia: 2.54, explicacion: "…",
+      codigo_repuesto: "01001-01001",
+      mes: 6,
+      anio: 2026,
+      cantidad_estimada: 41,
+      confianza: 0.95,
+      alta_confiabilidad: true,
+      etiqueta_confianza: "Alta Confiabilidad",
+      repuesto_conocido: true,
+      observaciones_historicas: 25,
+      mae_referencia: 2.54,
+      explicacion: "…",
     };
     mockFetchOnce(fake);
-    const res = await fetchPrediction({ codigo_repuesto: "01001-01001", mes: 6, anio: 2026, km: 50000 });
+    const res = await fetchPrediction({
+      codigo_repuesto: "01001-01001",
+      mes: 6,
+      anio: 2026,
+      km: 50000,
+    });
 
     expect(g.fetch).toHaveBeenCalledOnce();
     const [url, opts] = g.fetch.mock.calls[0];
     expect(url).toContain("/api/v1/ml/predict");
     expect(opts.method).toBe("POST");
-    expect(JSON.parse(opts.body)).toMatchObject({ codigo_repuesto: "01001-01001", mes: 6, km: 50000 });
+    expect(JSON.parse(opts.body)).toMatchObject({
+      codigo_repuesto: "01001-01001",
+      mes: 6,
+      km: 50000,
+    });
     expect(res.alta_confiabilidad).toBe(true);
     expect(res.etiqueta_confianza).toBe("Alta Confiabilidad");
   });
@@ -52,8 +72,11 @@ describe("fetchPrediction (RF-09/RF-10)", () => {
 describe("fetchMLStatus (RF-11)", () => {
   it("devuelve el estado del modelo con métricas", async () => {
     mockFetchOnce({
-      modelo_cargado: true, algoritmo: "XGBoost Regressor", version: "3.0",
-      repuestos_conocidos: 600, metrics: { wmape: 33.54, mape_alta_rotacion: 27.02, mae: 2.54 },
+      modelo_cargado: true,
+      algoritmo: "XGBoost Regressor",
+      version: "3.0",
+      repuestos_conocidos: 600,
+      metrics: { wmape: 33.54, mape_alta_rotacion: 27.02, mae: 2.54 },
     });
     const res = await fetchMLStatus();
     expect(res.modelo_cargado).toBe(true);
@@ -63,7 +86,16 @@ describe("fetchMLStatus (RF-11)", () => {
 
 describe("retrainModel (RF-15)", () => {
   it("envía el JWT en el header Authorization", async () => {
-    mockFetchOnce({ promovido: true, forzado: false, version: "3.0", entrenado_en: "", repuestos_conocidos: 600, modelo_recargado: true, metrics: {}, mensaje: "ok" });
+    mockFetchOnce({
+      promovido: true,
+      forzado: false,
+      version: "3.0",
+      entrenado_en: "",
+      repuestos_conocidos: 600,
+      modelo_recargado: true,
+      metrics: {},
+      mensaje: "ok",
+    });
     await retrainModel({ correr_etl: false });
     const [, opts] = g.fetch.mock.calls[0];
     expect(opts.headers.Authorization).toBe("Bearer fake-jwt-token");
@@ -71,7 +103,9 @@ describe("retrainModel (RF-15)", () => {
   });
 
   it("propaga el detalle de error del backend", async () => {
-    g.fetch = vi.fn().mockResolvedValue({ ok: false, status: 500, json: async () => ({ detail: "gate falló" }) });
+    g.fetch = vi
+      .fn()
+      .mockResolvedValue({ ok: false, status: 500, json: async () => ({ detail: "gate falló" }) });
     await expect(retrainModel()).rejects.toThrow("gate falló");
   });
 });
@@ -90,9 +124,17 @@ describe("fetchPurchaseSuggestions (RF-12)", () => {
 
 describe("generatePurchaseOrder (RF-12)", () => {
   it("envía los items y la observación con autenticación", async () => {
-    mockFetchOnce({ n_oc: "OC-IA-20260703-ABC123", items_insertados: 2, detalle: [], mensaje: "ok" });
+    mockFetchOnce({
+      n_oc: "OC-IA-20260703-ABC123",
+      items_insertados: 2,
+      detalle: [],
+      mensaje: "ok",
+    });
     const res = await generatePurchaseOrder(
-      [{ codigo_repuesto: "A", compra_sugerida: 5 }, { codigo_repuesto: "B", compra_sugerida: 3 }],
+      [
+        { codigo_repuesto: "A", compra_sugerida: 5 },
+        { codigo_repuesto: "B", compra_sugerida: 3 },
+      ],
       "OC de prueba",
     );
     const [url, opts] = g.fetch.mock.calls[0];

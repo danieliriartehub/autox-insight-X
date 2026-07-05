@@ -1,3 +1,4 @@
+// ── Componente Calendar ── Calendario de selección de fechas
 "use client";
 
 import * as React from "react";

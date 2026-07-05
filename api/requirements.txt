@@ -1,3 +1,6 @@
+# ── Dependencias del backend FastAPI ───────────────────────────────────────────
+# FastAPI + XGBoost para predicción de demanda de repuestos.
+
 fastapi==0.115.5
 uvicorn[standard]==0.32.1
 xgboost==2.1.3

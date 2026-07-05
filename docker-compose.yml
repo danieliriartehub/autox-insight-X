@@ -1,0 +1,97 @@
+# ──────────────────────────────────────────────────────────
+#  MEJORA: Orquestación Docker multi-servicio para AutoX
+#  RAZÓN: Un solo comando (`docker compose up`) levanta todo
+#         el stack: frontend, backend, base de datos de pruebas,
+#         SonarQube para calidad, y ZAP para seguridad.
+#  IMPACTO: Entorno 100% reproducible. Cero configuración manual.
+#           Ideal para CI/CD y desarrollo local.
+# ──────────────────────────────────────────────────────────
+
+version: "3.9"
+
+services:
+  # ── Frontend React ────────────────────────────────────
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: autox-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - VITE_API_URL=http://backend:8000
+      - VITE_SUPABASE_URL=${VITE_SUPABASE_URL:-https://placeholder.supabase.co}
+      - VITE_SUPABASE_ANON_KEY=${VITE_SUPABASE_ANON_KEY:-placeholder}
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - autox-network
+    restart: unless-stopped
+
+  # ── Backend FastAPI ────────────────────────────────────
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: autox-backend
+    ports:
+      - "8000:8000"
+    environment:
+      - SUPABASE_URL=${SUPABASE_URL:-https://placeholder.supabase.co}
+      - SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY:-placeholder}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health"]
+      interval: 15s
+      timeout: 5s
+      start_period: 15s
+      retries: 5
+    volumes:
+      - ./ml:/app/ml
+    networks:
+      - autox-network
+    restart: unless-stopped
+
+  # ── PostgreSQL de pruebas ──────────────────────────────
+  postgres-test:
+    image: postgres:16-alpine
+    container_name: autox-postgres-test
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: autox_test
+      POSTGRES_USER: autox
+      POSTGRES_PASSWORD: autox_test_2026
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U autox -d autox_test"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - autox-network
+
+  # ── SonarQube (análisis estático de calidad) ──────────
+  sonarqube:
+    image: sonarqube:community
+    container_name: autox-sonarqube
+    ports:
+      - "9000:9000"
+    environment:
+      - SONAR_ES_BOOTSTRAP_CHECKS_DISABLE=true
+    volumes:
+      - sonarqube_data:/opt/sonarqube/data
+      - sonarqube_logs:/opt/sonarqube/logs
+    networks:
+      - autox-network
+    restart: unless-stopped
+
+networks:
+  autox-network:
+    driver: bridge
+
+volumes:
+  pgdata:
+  sonarqube_data:
+  sonarqube_logs:

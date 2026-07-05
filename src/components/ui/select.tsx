@@ -1,3 +1,4 @@
+// ── Componente Select ── Menú desplegable de selección
 "use client";
 
 import * as React from "react";

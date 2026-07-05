@@ -1,36 +1,81 @@
+// ──────────────────────────────────────────────────────────
+//  Página: Dashboard Ejecutivo
+//  Visión global de la operación y supply chain con KPIs,
+//  gráficos de consumo mensual, distribución de servicios,
+//  tendencia de demanda y nivel de inventario.
+// ──────────────────────────────────────────────────────────
+
 import { createFileRoute } from "@tanstack/react-router";
 import {
-  Activity, ClipboardList, CheckCircle2, Package, Boxes, AlertTriangle, TrendingUp,
+  Activity,
+  ClipboardList,
+  CheckCircle2,
+  Package,
+  Boxes,
+  AlertTriangle,
+  TrendingUp,
 } from "lucide-react";
 import {
-  Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Legend, Line, LineChart,
-  Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis,
+  Area,
+  AreaChart,
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  Legend,
+  Line,
+  LineChart,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
 } from "recharts";
 
 import { TopBar } from "@/components/TopBar";
 import { KpiCard } from "@/components/KpiCard";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { useKpis, useConsumoMensual, useDistribucionServicios, useNivelInventario } from "@/hooks/useData";
+import {
+  useKpis,
+  useConsumoMensual,
+  useDistribucionServicios,
+  useNivelInventario,
+} from "@/hooks/useData";
 
+// ── Definición de la ruta ─────────────────────────────────
 export const Route = createFileRoute("/dashboard")({
   head: () => ({
     meta: [
       { title: "Dashboard Ejecutivo — bpA Motors SCM" },
-      { name: "description", content: "Indicadores clave de operación, inventario y predicción de demanda." },
+      {
+        name: "description",
+        content: "Indicadores clave de operación, inventario y predicción de demanda.",
+      },
     ],
   }),
   component: Dashboard,
 });
 
+// Paleta de colores para el gráfico de torta
 const PIE_COLORS = ["#0D47A1", "#1565C0", "#42A5F5", "#90CAF9"];
 
 function Dashboard() {
+  // ── Data fetching desde Supabase ─────────────────────
   const { data: kpis, error: kpisError } = useKpis();
   const { data: consumoMensual } = useConsumoMensual();
   const { data: distribucionServicios } = useDistribucionServicios();
   const { data: nivelInventario } = useNivelInventario();
 
-  const k = kpis ?? { otsAbiertas: 0, otsCerradas: 0, repuestosConsumidos: 0, inventarioDisponible: 0, quiebresStock: 0, prediccionDemanda: 0 };
+  // Valores por defecto mientras se cargan los datos
+  const k = kpis ?? {
+    otsAbiertas: 0,
+    otsCerradas: 0,
+    repuestosConsumidos: 0,
+    inventarioDisponible: 0,
+    quiebresStock: 0,
+    prediccionDemanda: 0,
+  };
   const consumo = consumoMensual ?? [];
   const distribucion = distribucionServicios ?? [];
   const nivel = nivelInventario ?? [];
@@ -39,20 +84,61 @@ function Dashboard() {
     <>
       <TopBar title="Dashboard Ejecutivo" subtitle="Visión global de la operación y supply chain" />
       <main className="flex-1 space-y-6 p-6">
+        {/* Banner de error si Supabase no responde */}
         {kpisError && (
           <div className="rounded-lg border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive">
             <strong>Error de conexión con Supabase:</strong> {kpisError}
           </div>
         )}
+
+        {/* ── Fila de KPIs principales ───────────────────── */}
         <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-          <KpiCard label="OTs Abiertas" value={k.otsAbiertas} delta="+8% vs semana ant." trend="up" icon={ClipboardList} />
-          <KpiCard label="OTs Cerradas" value={k.otsCerradas} delta="+12% MTD" trend="up" icon={CheckCircle2} tone="success" />
-          <KpiCard label="Repuestos consumidos" value={k.repuestosConsumidos.toLocaleString()} delta="Mes en curso" icon={Package} />
-          <KpiCard label="Inventario disponible" value={k.inventarioDisponible.toLocaleString()} delta="Unidades totales" icon={Boxes} />
-          <KpiCard label="Quiebres de stock" value={k.quiebresStock} delta="Requiere atención" trend="down" icon={AlertTriangle} tone="destructive" />
-          <KpiCard label="Predicción demanda" value={k.prediccionDemanda.toLocaleString()} delta="Próximo mes" trend="up" icon={TrendingUp} tone="success" />
+          <KpiCard
+            label="OTs Abiertas"
+            value={k.otsAbiertas}
+            delta="+8% vs semana ant."
+            trend="up"
+            icon={ClipboardList}
+          />
+          <KpiCard
+            label="OTs Cerradas"
+            value={k.otsCerradas}
+            delta="+12% MTD"
+            trend="up"
+            icon={CheckCircle2}
+            tone="success"
+          />
+          <KpiCard
+            label="Repuestos consumidos"
+            value={k.repuestosConsumidos.toLocaleString()}
+            delta="Mes en curso"
+            icon={Package}
+          />
+          <KpiCard
+            label="Inventario disponible"
+            value={k.inventarioDisponible.toLocaleString()}
+            delta="Unidades totales"
+            icon={Boxes}
+          />
+          <KpiCard
+            label="Quiebres de stock"
+            value={k.quiebresStock}
+            delta="Requiere atención"
+            trend="down"
+            icon={AlertTriangle}
+            tone="destructive"
+          />
+          <KpiCard
+            label="Predicción demanda"
+            value={k.prediccionDemanda.toLocaleString()}
+            delta="Próximo mes"
+            trend="up"
+            icon={TrendingUp}
+            tone="success"
+          />
         </section>
 
+        {/* ── Gráficos: consumo mensual + distribución ── */}
         <section className="grid grid-cols-1 gap-4 lg:grid-cols-3">
           <Card className="lg:col-span-2">
             <CardHeader>
@@ -73,13 +159,27 @@ function Dashboard() {
                   <YAxis fontSize={12} stroke="#64748b" />
                   <Tooltip contentStyle={{ borderRadius: 8, border: "1px solid #e2e8f0" }} />
                   <Legend />
-                  <Area type="monotone" dataKey="consumo" name="Consumo real" stroke="#0D47A1" fill="url(#g1)" strokeWidth={2} />
-                  <Line type="monotone" dataKey="prediccion" name="Predicción IA" stroke="#42A5F5" strokeWidth={2} strokeDasharray="4 4" dot={false} />
+                  <Area
+                    type="monotone"
+                    dataKey="consumo"
+                    name="Consumo real"
+                    stroke="#0D47A1"
+                    fill="url(#g1)"
+                    strokeWidth={2}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="prediccion"
+                    name="Predicción IA"
+                    stroke="#42A5F5"
+                    strokeWidth={2}
+                    strokeDasharray="4 4"
+                    dot={false}
+                  />
                 </AreaChart>
               </ResponsiveContainer>
             </CardContent>
           </Card>
-
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Distribución por tipo de servicio</CardTitle>
@@ -88,7 +188,14 @@ function Dashboard() {
             <CardContent className="h-72">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
-                  <Pie data={distribucion} dataKey="valor" nameKey="tipo" innerRadius={55} outerRadius={90} paddingAngle={2}>
+                  <Pie
+                    data={distribucion}
+                    dataKey="valor"
+                    nameKey="tipo"
+                    innerRadius={55}
+                    outerRadius={90}
+                    paddingAngle={2}
+                  >
                     {distribucion.map((_, i) => (
                       <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
                     ))}
@@ -101,6 +208,7 @@ function Dashboard() {
           </Card>
         </section>
 
+        {/* ── Tendencia e inventario ──────────────────── */}
         <section className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           <Card>
             <CardHeader>
@@ -113,12 +221,17 @@ function Dashboard() {
                   <XAxis dataKey="mes" fontSize={12} stroke="#64748b" />
                   <YAxis fontSize={12} stroke="#64748b" />
                   <Tooltip />
-                  <Line type="monotone" dataKey="consumo" stroke="#0D47A1" strokeWidth={3} dot={{ r: 3 }} />
+                  <Line
+                    type="monotone"
+                    dataKey="consumo"
+                    stroke="#0D47A1"
+                    strokeWidth={3}
+                    dot={{ r: 3 }}
+                  />
                 </LineChart>
               </ResponsiveContainer>
             </CardContent>
           </Card>
-
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Nivel de inventario por categoría</CardTitle>
@@ -140,6 +253,7 @@ function Dashboard() {
           </Card>
         </section>
 
+        {/* ── Salud operacional ──────────────────────────── */}
         <Card>
           <CardHeader className="flex flex-row items-center gap-2">
             <Activity className="h-4 w-4 text-primary" />
@@ -147,7 +261,13 @@ function Dashboard() {
           </CardHeader>
           <CardContent className="grid grid-cols-2 gap-4 md:grid-cols-4">
             {[
-              { l: "Tasa de cierre OT", v: k.otsCerradas ? `${Math.round((k.otsCerradas / (k.otsCerradas + k.otsAbiertas)) * 100)}%` : "—", c: "text-success" },
+              {
+                l: "Tasa de cierre OT",
+                v: k.otsCerradas
+                  ? `${Math.round((k.otsCerradas / (k.otsCerradas + k.otsAbiertas)) * 100)}%`
+                  : "—",
+                c: "text-success",
+              },
               { l: "Cobertura de stock", v: "23 días", c: "text-primary" },
               { l: "Precisión predictiva", v: "91.2%", c: "text-success" },
               { l: "SLA proveedores", v: "94%", c: "text-success" },

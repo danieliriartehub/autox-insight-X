@@ -1,0 +1,27 @@
+# MEJORA: Configuración de Hadolint — linter para Dockerfiles
+# RAZÓN: Estandariza reglas de calidad y seguridad en imágenes Docker
+# IMPACTO: Previene malas prácticas en Dockerfiles (privilegios, orden de capas, etiquetas ausentes)
+
+failure-threshold: warning
+
+trustedRegistries:
+  - docker.io
+  - ghcr.io
+
+override:
+  info:
+    # DL3009: Delete the apt lists after installing something
+    # Justificación: Ya se ejecuta rm -rf /var/lib/apt/lists/* en los Dockerfiles
+    - DL3009
+    # DL3008: Pin versions in apt-get install
+    # Justificación: Las imágenes slim se actualizan frecuentemente; pinning frágil
+    - DL3008
+    # DL3045: Use COPY instead of ADD
+    # Justificación: No se usa ADD en los Dockerfiles; exención preventiva
+    - DL3045
+
+label-schema:
+  author: bpA Motors
+  org.opencontainers.image.title: AutoX Insight X
+  org.opencontainers.image.source: https://github.com/danieliriartehub/autox-insight-X
+  org.opencontainers.image.licenses: MIT

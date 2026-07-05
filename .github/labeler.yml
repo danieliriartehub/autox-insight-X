@@ -1,0 +1,49 @@
+# MEJORA: Auto-labeler para PRs
+# RAZÓN: Clasifica automáticamente PRs por área del código
+# IMPACTO: Organización de releases y filtrado por categoría
+
+frontend:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "src/**/*"
+          - "vite.config.*"
+          - "tailwind.config.*"
+          - "nginx.conf"
+
+backend:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "api/**/*"
+          - "ml/**/*"
+
+docker:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "Dockerfile.*"
+          - "docker-compose.*"
+
+infrastructure:
+  - changed-files:
+      - any-glob-to-any-file:
+          - ".github/**/*"
+          - ".husky/**/*"
+          - ".env.*"
+
+tests:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "tests/**/*"
+          - "**/*.spec.*"
+
+documentation:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "**/*.md"
+          - "SECURITY.md"
+
+dependencies:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "package.json"
+          - "package-lock.json"
+          - "api/requirements.txt"

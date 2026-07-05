@@ -1,3 +1,4 @@
+// ── Componente DropdownMenu ── Menú contextual desplegable
 "use client";
 
 import * as React from "react";

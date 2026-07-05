@@ -1,3 +1,4 @@
+// ── Componente Collapsible ── Sección expandible/contraíble
 "use client";
 
 import * as CollapsiblePrimitive from "@radix-ui/react-collapsible";

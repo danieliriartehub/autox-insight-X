@@ -1,3 +1,8 @@
+# ── API principal de AutoX Insight ─────────────────────────────────────────────
+# Servicio FastAPI para predicción de demanda de repuestos.
+# Carga el modelo XGBoost (model.pkl) al arrancar y expone endpoints
+# /health y /predict. Configura CORS para el frontend en Vercel.
+
 import os
 import pickle
 import logging
@@ -13,15 +18,20 @@ from pydantic import BaseModel, Field
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 log = logging.getLogger(__name__)
 
+# Ruta al modelo serializado (ml/model.pkl relativo a la raíz del proyecto)
 MODEL_PATH = Path(__file__).parent.parent / "ml" / "model.pkl"
 
-# Estado global del modelo (cargado al arrancar)
+# Estado global del modelo (se carga al arrancar el servidor)
 model_bundle: dict = {}
 
 
+# ── Ciclo de vida de la aplicación ─────────────────────────────────────────────
+# startup: carga el modelo XGBoost desde model.pkl
+# shutdown: limpia el bundle de la memoria
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # ── startup ──
+    log.info("Iniciando AutoX Insight API...")
     if not MODEL_PATH.exists():
         log.warning(f"model.pkl no encontrado en {MODEL_PATH}. /predict no estará disponible hasta entrenar.")
     else:
@@ -29,9 +39,11 @@ async def lifespan(app: FastAPI):
             model_bundle.update(pickle.load(f))
         log.info(f"Modelo cargado desde {MODEL_PATH}")
     yield
-    # ── shutdown ──
     model_bundle.clear()
+    log.info("AutoX Insight API detenida.")
 
+
+# ── Configuración de la app ────────────────────────────────────────────────────
 
 app = FastAPI(
     title="AutoX Insight API",
@@ -40,11 +52,17 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# CORS restringido a orígenes conocidos (configurable vía ALLOWED_ORIGINS)
+_ALLOWED_ORIGINS = os.getenv(
+    "ALLOWED_ORIGINS",
+    "https://autox-insight-x.vercel.app,http://localhost:3000,http://localhost:8080",
+).split(",")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # ajustar al dominio de Vercel en producción
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=_ALLOWED_ORIGINS,
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["Content-Type", "Authorization"],
 )
 
 
@@ -91,13 +109,17 @@ def _confianza(codigo_repuesto: str, encoder: dict) -> float:
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────
 
+# ── Endpoints ───────────────────────────────────────────────────────────────────
+
 @app.get("/health", response_model=HealthResponse, tags=["infra"])
 def health():
+    """Endpoint de salud: verifica que el modelo esté cargado."""
     return {"status": "ok", "modelo_cargado": bool(model_bundle)}
 
 
 @app.post("/predict", response_model=PredictResponse, tags=["prediccion"])
 def predict(req: PredictRequest):
+    """Predice la demanda de un repuesto usando el modelo XGBoost cargado."""
     if not model_bundle:
         raise HTTPException(
             status_code=503,

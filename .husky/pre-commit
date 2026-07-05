@@ -1,0 +1,5 @@
+# MEJORA: pre-commit hook — lint-staged ejecuta eslint + prettier en staged files
+# RAZÓN: evita commits con errores de lint o formato inconsistente
+# IMPACTO: feedback inmediato, código limpio siempre en commits
+
+npx lint-staged

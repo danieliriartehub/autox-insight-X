@@ -1,3 +1,8 @@
+// ── Cliente Supabase ──────────────────────────────────────────────────────────
+// Inicializa el cliente de Supabase con las variables de entorno.
+// Exporta `supabaseReady` para que los hooks verifiquen que las
+// credenciales existen antes de hacer consultas.
+
 import { createClient } from "@supabase/supabase-js";
 
 const url = import.meta.env.VITE_SUPABASE_URL as string | undefined;
@@ -6,13 +11,13 @@ const key = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
 if (!url || !key) {
   console.error(
     "[AutoX] VITE_SUPABASE_URL o VITE_SUPABASE_ANON_KEY no están definidas. " +
-    "Agrégalas en Vercel → Settings → Environment Variables y redespliega."
+      "Agrégalas en Vercel → Settings → Environment Variables y redespliega.",
   );
 }
 
 export const supabase = createClient(
   url ?? "https://placeholder.supabase.co",
-  key ?? "placeholder"
+  key ?? "placeholder",
 );
 
 export const supabaseReady = Boolean(url && key);

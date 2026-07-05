@@ -1,3 +1,4 @@
+// ── Componente Alert ── Banners de notificación informativa
 import * as React from "react";
 import { cva, type VariantProps } from "class-variance-authority";
 

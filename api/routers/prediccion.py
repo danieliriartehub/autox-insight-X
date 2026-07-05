@@ -1,13 +1,11 @@
-"""
-Router de predicción de demanda ML.
-Se monta en main.py con:
-    from routers.prediccion import router as prediccion_router
-    app.include_router(prediccion_router, prefix="/ml")
+# ── Router de predicción ML ────────────────────────────────────────────────────
+# Endpoints para el modelo de Machine Learning (XGBoost).
+# Se monta en main.py con prefix "/ml".
+#
+# Endpoints:
+#   GET  /ml/health   → estado del modelo
+#   POST /ml/predict  → predicción individual de demanda
 
-Endpoints:
-    POST /ml/predict        → predicción individual
-    GET  /ml/health         → estado del modelo
-"""
 import pickle
 import logging
 from pathlib import Path
@@ -22,13 +20,13 @@ log = logging.getLogger(__name__)
 router = APIRouter(tags=["prediccion-ml"])
 
 # ── Carga del modelo ──────────────────────────────────────────────────────────
-# Busca model.pkl relativo a este archivo (../../ml/model.pkl)
+# Busca model.pkl en ../../ml/model.pkl relativo a este archivo
 _MODEL_PATH = Path(__file__).parent.parent / "ml" / "model.pkl"
 _bundle: dict = {}
 
 
 def _load_model() -> None:
-    """Carga el modelo en memoria. Se llama en el lifespan del app principal."""
+    """Carga el modelo serializado en memoria. Se invoca desde el lifespan."""
     global _bundle
     if not _MODEL_PATH.exists():
         log.warning(
@@ -38,10 +36,10 @@ def _load_model() -> None:
         return
     with open(_MODEL_PATH, "rb") as f:
         _bundle = pickle.load(f)
-    log.info(f"✅ Modelo ML cargado (v{_bundle.get('version', '?')}) desde {_MODEL_PATH}")
+    log.info(f"Modelo ML cargado (v{_bundle.get('version', '?')}) desde {_MODEL_PATH}")
 
 
-# Llamar en startup del backend principal
+# Función para invocar desde el startup del backend principal
 def startup_ml():
     _load_model()
 
@@ -77,27 +75,30 @@ class MLHealthResponse(BaseModel):
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
+# ── Helpers ───────────────────────────────────────────────────────────────────
+
 def _build_feature_vector(req: PredictRequest, encoder: dict) -> np.ndarray:
     """
-    Construye el vector de features en el orden exacto usado en train.py:
+    Construye el vector de features en el orden exacto usado por train.py:
     [codigo_enc, mes, anio, km_enc]
     """
     import math
 
     repuesto_map: dict = encoder.get("repuesto_map", {})
 
-    codigo_enc = repuesto_map.get(req.codigo_repuesto, -1)
+    codigo_enc = repuesto_map.get(req.codigo_repuesto, -1)  # -1 = desconocido
     anio = req.anio if req.anio is not None else encoder.get("anio_default", 2025)
     km = req.km if req.km is not None else encoder.get("km_default", 0)
-    km_enc = math.log1p(km)
+    km_enc = math.log1p(km)  # transformación logarítmica del kilometraje
 
     return np.array([[codigo_enc, req.mes, anio, km_enc]], dtype=float)
 
 
 def _compute_confianza(req: PredictRequest, encoder: dict) -> tuple[float, bool]:
     """
-    - Repuesto conocido (en entrenamiento): confianza alta (0.87)
-    - Repuesto desconocido: confianza baja  (0.45)
+    Calcula la confianza según si el repuesto fue visto en entrenamiento:
+    - Conocido: 0.87 (alta confianza)
+    - Desconocido: 0.45 (baja confianza, extrapolación)
     """
     repuesto_map: dict = encoder.get("repuesto_map", {})
     known = req.codigo_repuesto in repuesto_map
@@ -106,9 +107,11 @@ def _compute_confianza(req: PredictRequest, encoder: dict) -> tuple[float, bool]
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────
 
+# ── Endpoints ─────────────────────────────────────────────────────────────────
+
 @router.get("/health", response_model=MLHealthResponse)
 def ml_health():
-    """Estado del módulo de Machine Learning."""
+    """Retorna el estado del módulo ML: versión, repuestos conocidos, etc."""
     if not _bundle:
         return MLHealthResponse(status="degraded", modelo_cargado=False)
     encoder = _bundle.get("encoder", {})
@@ -123,13 +126,8 @@ def ml_health():
 @router.post("/predict", response_model=PredictResponse)
 def predict(req: PredictRequest):
     """
-    Predice la demanda estimada de un repuesto para un mes/año dado.
-
-    - **codigo_repuesto**: código exacto del repuesto (como está en Supabase)
-    - **mes**: mes objetivo (1-12)
-    - **anio**: año objetivo (omitir = año de entrenamiento más frecuente)
-    - **km**: kilometraje promedio del vehículo
-    - **tipo_ot**: tipo de orden de trabajo (Mantenimiento, Correctivo, etc.)
+    Predice la demanda estimada de un repuesto para un mes/año específicos.
+    Usa el modelo XGBoost preentrenado y el encoder serializado en model.pkl.
     """
     if not _bundle:
         raise HTTPException(
