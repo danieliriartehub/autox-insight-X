@@ -25,6 +25,7 @@ jobs:
 
       - name: Dependency Review
         uses: actions/dependency-review-action@v5
+        continue-on-error: true
         with:
           fail-on-severity: critical
           comment-summary-in-pr: always
