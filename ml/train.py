@@ -42,6 +42,7 @@ REG_LAMBDA = 1.0
 EARLY_STOPPING_ROUNDS = 30
 N_SPLITS = 5
 WMPAE_THRESHOLD = 40.0
+MAPE_HR_THRESHOLD = 30.0
 
 
 def wmape(y_true: np.ndarray, y_pred: np.ndarray) -> float:
@@ -210,6 +211,37 @@ def train() -> dict:
 
     hr_metrics = compute_high_rotation_metrics(df, FEATURE_COLS, TARGET)
 
+    wmape_val = cv_metrics["wmape_mean"]
+    mape_hr_val = hr_metrics.get("mape_hr")
+
+    gate_wmape = wmape_val <= WMPAE_THRESHOLD
+    gate_mape_hr = (mape_hr_val is None or mape_hr_val <= MAPE_HR_THRESHOLD)
+    mape_hr_str = f"{mape_hr_val:.2f}" if mape_hr_val is not None else "N/A (pocos datos)"
+
+    if not gate_wmape:
+        log.error(
+            f"╔══════════════════════════════════════════════════════════╗\n"
+            f"║  DOUBLE GATE — RECHAZADO                                ║\n"
+            f"╠══════════════════════════════════════════════════════════╣\n"
+            f"║  wMAPE global:       {wmape_val:>7.2f}%  (umbral ≤ {WMPAE_THRESHOLD}%)  ✗ SUPERA    ║\n"
+            f"║  MAPE alta rotación: {mape_hr_str:>16}  (umbral ≤ {MAPE_HR_THRESHOLD}%)  {'✗' if not gate_mape_hr else '✓'}       ║\n"
+            f"╚══════════════════════════════════════════════════════════╝"
+        )
+        log.warning("Modelo NO guardado en disco — no cumple umbrales de calidad.")
+        return {}
+
+    if not gate_mape_hr:
+        log.error(
+            f"╔══════════════════════════════════════════════════════════╗\n"
+            f"║  DOUBLE GATE — RECHAZADO                                ║\n"
+            f"╠══════════════════════════════════════════════════════════╣\n"
+            f"║  wMAPE global:       {wmape_val:>7.2f}%  (umbral ≤ {WMPAE_THRESHOLD}%)  ✓            ║\n"
+            f"║  MAPE alta rotación: {mape_hr_str:>16}  (umbral ≤ {MAPE_HR_THRESHOLD}%)  ✗ SUPERA    ║\n"
+            f"╚══════════════════════════════════════════════════════════╝"
+        )
+        log.warning("Modelo NO guardado en disco — no cumple umbrales de calidad.")
+        return {}
+
     bundle = {
         "model": model,
         "encoder": encoders,
@@ -219,7 +251,7 @@ def train() -> dict:
         "n_repuestos_conocidos": int(df["codigo_enc"].nunique()),
         "n_observaciones": len(df),
         "metrics": {
-            "wmape": round(cv_metrics["wmape_mean"], 2),
+            "wmape": round(wmape_val, 2),
             "wmape_std": round(cv_metrics["wmape_std"], 2),
             "mae": round(cv_metrics["mae_mean"], 2),
             "mae_std": round(cv_metrics["mae_std"], 2),
@@ -228,7 +260,7 @@ def train() -> dict:
             "mape_alta_rotacion": hr_metrics["mape_hr"],
             "mae_alta_rotacion": hr_metrics["mae_hr"],
             "n_alta_rotacion": hr_metrics["n_hr"],
-            "wmape_gate": round(cv_metrics["wmape_mean"], 2),
+            "wmape_gate": round(wmape_val, 2),
         },
         "feature_importance": importance,
         "conformal": {
@@ -245,10 +277,16 @@ def train() -> dict:
     MODEL_PATH.parent.mkdir(parents=True, exist_ok=True)
     with open(MODEL_PATH, "wb") as f:
         pickle.dump(bundle, f)
-    log.info(f"Modelo guardado en {MODEL_PATH}")
 
-    gate_passed = cv_metrics["wmape_mean"] <= WMPAE_THRESHOLD
-    log.info(f"Gate calidad: wMAPE={cv_metrics['wmape_mean']:.2f}% vs umbral={WMPAE_THRESHOLD}% → {'PASA' if gate_passed else 'NO PASA'}")
+    log.info(
+        f"╔══════════════════════════════════════════════════════════╗\n"
+        f"║  DOUBLE GATE — APROBADO                                  ║\n"
+        f"╠══════════════════════════════════════════════════════════╣\n"
+        f"║  wMAPE global:       {wmape_val:>7.2f}%  (umbral ≤ {WMPAE_THRESHOLD}%)  ✓ OK       ║\n"
+        f"║  MAPE alta rotación: {mape_hr_str:>16}  (umbral ≤ {MAPE_HR_THRESHOLD}%)  ✓ OK       ║\n"
+        f"║  Modelo guardado en: {MODEL_PATH}  ║\n"
+        f"╚══════════════════════════════════════════════════════════╝"
+    )
 
     return bundle
 

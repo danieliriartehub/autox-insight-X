@@ -13,6 +13,7 @@ import pandas as pd
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
+from supabase import create_client
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 log = logging.getLogger(__name__)
@@ -20,6 +21,9 @@ log = logging.getLogger(__name__)
 MODEL_PATH = Path(__file__).parent.parent / "ml" / "model.pkl"
 model_bundle: dict = {}
 _model_loaded = False
+
+WMPAE_THRESHOLD = 40.0
+MAPE_HR_THRESHOLD = 30.0
 
 
 @asynccontextmanager
@@ -365,21 +369,39 @@ def retrain(req: RetrainRequest):
 
     metrics = bundle.get("metrics", {})
     wmape = metrics.get("wmape", 100.0)
-    gate_passed = wmape <= 40.0
+    mape_hr = metrics.get("mape_alta_rotacion")
+
+    gate_wmape = wmape <= WMPAE_THRESHOLD
+    gate_mape_hr = (mape_hr is None or mape_hr <= MAPE_HR_THRESHOLD)
+    gate_passed = gate_wmape and gate_mape_hr
     promovido = gate_passed or req.forzar_promocion
 
     if promovido:
         model_bundle.clear()
         model_bundle.update(bundle)
         _model_loaded = True
+
+        partes_gate = []
+        if not gate_wmape:
+            partes_gate.append(f"wMAPE={wmape:.1f}% supera umbral {WMPAE_THRESHOLD}%")
+        if not gate_mape_hr:
+            partes_gate.append(f"MAPE alta rotación={mape_hr:.1f}% supera umbral {MAPE_HR_THRESHOLD}%")
+        forzado_nota = f" (Promovido forzosamente — ignorado: {'; '.join(partes_gate)})" if partes_gate else ""
+
+        mape_hr_str = f"{mape_hr:.1f}%" if mape_hr is not None else "N/A"
         mensaje = (
             f"Modelo reentrenado exitosamente v{bundle.get('version')}. "
-            f"wMAPE={wmape:.1f}%. "
-            f"{'(Promovido forzosamente)' if req.forzar_promocion and not gate_passed else ''}"
+            f"wMAPE={wmape:.1f}% | MAPE alta rotación={mape_hr_str}.{forzado_nota}"
         )
     else:
+        razones = []
+        if not gate_wmape:
+            razones.append(f"wMAPE={wmape:.1f}% supera umbral {WMPAE_THRESHOLD}%")
+        if not gate_mape_hr:
+            hr_str = f"{mape_hr:.1f}%" if mape_hr is not None else "N/A"
+            razones.append(f"MAPE alta rotación={hr_str} supera umbral {MAPE_HR_THRESHOLD}%")
         mensaje = (
-            f"Modelo entrenado pero NO promovido. wMAPE={wmape:.1f}% supera el umbral de 40%. "
+            f"Modelo entrenado pero RECHAZADO por Double Gate. {'; '.join(razones)}. "
             "Usa forzar_promocion=true para promoverlo manualmente."
         )
 
@@ -410,21 +432,50 @@ def purchase_suggestions(
     repuesto_map = encoder.get("codigo", {})
     suggestions = []
     target_anio = anio if anio else datetime.now().year
+    codigos = list(repuesto_map.keys())[:limite]
 
-    for codigo, _ in list(repuesto_map.items())[:limite]:
+    # ── Consulta batch a Supabase: stock vivo + descripción/marca ──────────────
+    sb_url = os.getenv("VITE_SUPABASE_URL", "")
+    sb_key = os.getenv("VITE_SUPABASE_ANON_KEY", "")
+    stock_index: dict[str, dict] = {}
+
+    if sb_url and sb_key:
+        try:
+            sb = create_client(sb_url, sb_key)
+            result = (
+                sb.table("stock")
+                .select("c_repuesto, stock, stock_minimo, stock_maximo, repuesto(descripcion, marca)")
+                .in_("c_repuesto", codigos)
+                .execute()
+            )
+            for row in (result.data or []):
+                stock_index[row["c_repuesto"]] = row
+            log.info(f"Stock live cargado para {len(stock_index)}/{len(codigos)} SKUs")
+        except Exception as e:
+            log.warning(f"No se pudo consultar stock live: {e}. Usando fallback a ceros.")
+    else:
+        log.warning("Supabase no configurado (VITE_SUPABASE_URL/VITE_SUPABASE_ANON_KEY). Usando fallback a ceros.")
+
+    # ── Generar propuestas ─────────────────────────────────────────────────────
+    for codigo in codigos:
         pred_req = PredictRequest(codigo_repuesto=codigo, mes=mes, anio=target_anio, km=km)
         pred = _predict(model_bundle, pred_req)
 
-        stock_actual = 0
-        stock_minimo = 0
-        stock_maximo = 0
-        deficit = max(0, pred.cantidad_estimada - stock_actual)
+        info = stock_index.get(codigo, {})
+        stock_actual = info.get("stock", 0) or 0
+        stock_minimo = info.get("stock_minimo", 0) or 0
+        stock_maximo = info.get("stock_maximo", 0) or 0
+        repuesto_rel = info.get("repuesto") or {}
+        descripcion = repuesto_rel.get("descripcion")
+        marca = repuesto_rel.get("marca")
+
+        deficit = max(0.0, pred.cantidad_estimada - stock_actual)
         compra_sugerida = math.ceil(deficit * 1.15) if deficit > 0 else 0
 
         prop = PurchaseProposal(
             codigo_repuesto=codigo,
-            descripcion=None,
-            marca=None,
+            descripcion=descripcion,
+            marca=marca,
             stock_actual=stock_actual,
             stock_minimo=stock_minimo,
             stock_maximo=stock_maximo,
@@ -455,7 +506,6 @@ def purchase_suggestions(
 @app.post("/api/v1/purchase-orders/generate", response_model=GenerateOCResponse)
 def generate_oc(req: GenerateOCRequest):
     try:
-        from supabase import create_client
         sb_url = os.getenv("VITE_SUPABASE_URL", "")
         sb_key = os.getenv("VITE_SUPABASE_ANON_KEY", "")
         if not sb_url or not sb_key:
