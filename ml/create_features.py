@@ -40,8 +40,9 @@ def build_seasonality(df: pd.DataFrame) -> pd.DataFrame:
 
 def build_km_features(df: pd.DataFrame) -> pd.DataFrame:
     result = df.copy()
-    if "km" in result.columns:
-        result["km_log"] = np.log1p(result["km"].fillna(0))
+    km_col = "km_promedio" if "km_promedio" in result.columns else ("km" if "km" in result.columns else None)
+    if km_col:
+        result["km_log"] = np.log1p(result[km_col].fillna(0))
         result["km_por_mes"] = result["km_log"] / result["mes"].clip(lower=1)
     else:
         result["km_log"] = 0.0
@@ -51,8 +52,9 @@ def build_km_features(df: pd.DataFrame) -> pd.DataFrame:
 
 def build_price_features(df: pd.DataFrame) -> pd.DataFrame:
     result = df.copy()
-    if "precio" in result.columns:
-        result["precio_log"] = np.log1p(result["precio"].fillna(0))
+    price_col = "precio_unitario_promedio" if "precio_unitario_promedio" in result.columns else ("precio" if "precio" in result.columns else None)
+    if price_col:
+        result["precio_log"] = np.log1p(result[price_col].fillna(0))
     else:
         result["precio_log"] = 0.0
     return result
@@ -60,7 +62,7 @@ def build_price_features(df: pd.DataFrame) -> pd.DataFrame:
 
 def encode_categorical(df: pd.DataFrame, cols: list[str] | None = None) -> tuple[pd.DataFrame, dict]:
     if cols is None:
-        cols = ["codigo", "marca", "categoria"]
+        cols = ["codigo", "marca"]
     result = df.copy()
     encoders = {}
     for col in cols:
@@ -88,8 +90,6 @@ def run_feature_engineering() -> tuple[pd.DataFrame, dict]:
     df = build_km_features(df)
     df = build_price_features(df)
 
-    if "garantia_meses" in df.columns:
-        df["garantia_meses"] = df["garantia_meses"].fillna(0)
     if "stock_actual" in df.columns:
         df["sobre_stock"] = (df["stock_actual"] > df["stock_minimo"].fillna(0)).astype(int)
 

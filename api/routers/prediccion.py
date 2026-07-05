@@ -78,6 +78,9 @@ def _build_feature_vector(req: PredictRequest, bundle: dict) -> np.ndarray:
     mes_sin = math.sin(2 * math.pi * req.mes / 12)
     mes_cos = math.cos(2 * math.pi * req.mes / 12)
 
+    marca_map = encoder.get("marca", {})
+    marca_enc = marca_map.get(req.marca if hasattr(req, "marca") else "", -1)
+
     vec = {
         "codigo_enc": codigo_enc,
         "mes": req.mes,
@@ -87,10 +90,8 @@ def _build_feature_vector(req: PredictRequest, bundle: dict) -> np.ndarray:
         "mes_sin": mes_sin,
         "mes_cos": mes_cos,
         "precio_log": 0.0,
-        "garantia_meses": 0,
         "sobre_stock": 0,
-        "marca_enc": 0,
-        "categoria_enc": 0,
+        "marca_enc": marca_enc,
         "lag_1": 0.0,
         "lag_3": 0.0,
         "rolling_mean_3": 0.0,

@@ -7,6 +7,7 @@ from contextlib import asynccontextmanager
 from datetime import datetime
 from typing import Optional
 
+import httpx
 import numpy as np
 import pandas as pd
 from fastapi import FastAPI, HTTPException, Query
@@ -25,13 +26,35 @@ _model_loaded = False
 async def lifespan(app: FastAPI):
     global _model_loaded
     log.info("AutoX Insight API v4.0 iniciando...")
+
+    if not MODEL_PATH.exists():
+        # Fallback: descargar desde Supabase Storage (Railway ephemeral filesystem)
+        supabase_url = os.getenv("VITE_SUPABASE_URL", "")
+        supabase_key = os.getenv("VITE_SUPABASE_SERVICE_KEY", "")
+        if supabase_url and supabase_key:
+            try:
+                log.info("Descargando modelo desde Supabase Storage...")
+                resp = httpx.get(
+                    f"{supabase_url}/storage/v1/object/modelos-ia/model-v4.pkl",
+                    headers={"Authorization": f"Bearer {supabase_key}", "apikey": supabase_key},
+                    timeout=30,
+                )
+                resp.raise_for_status()
+                MODEL_PATH.parent.mkdir(parents=True, exist_ok=True)
+                with open(MODEL_PATH, "wb") as f:
+                    f.write(resp.content)
+                log.info(f"Modelo descargado ({len(resp.content)} bytes)")
+            except Exception as e:
+                log.warning(f"No se pudo descargar modelo desde Storage: {e}")
+
     if MODEL_PATH.exists():
         with open(MODEL_PATH, "rb") as f:
             model_bundle.update(pickle.load(f))
         _model_loaded = True
         log.info(f"Modelo v{model_bundle.get('version', '?')} cargado desde {MODEL_PATH}")
     else:
-        log.warning(f"model.pkl no encontrado en {MODEL_PATH}")
+        log.warning(f"model.pkl no encontrado en {MODEL_PATH}. El modo predictivo funcionará con capacidad limitada.")
+
     yield
     model_bundle.clear()
     _model_loaded = False

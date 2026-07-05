@@ -9,7 +9,7 @@ from supabase import create_client, Client
 
 from dotenv import load_dotenv
 
-load_dotenv(Path(__file__).parent.parent.parent / ".env.example")
+load_dotenv(Path(__file__).parent.parent.parent / ".env")
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 log = logging.getLogger(__name__)
@@ -27,13 +27,12 @@ def get_supabase() -> Client:
     return create_client(SUPABASE_URL, SUPABASE_KEY)
 
 
-def extract_ots(sb: Client) -> pd.DataFrame:
-    log.info("Extrayendo órdenes de trabajo desde Supabase...")
+def extract_with_pagination(sb: Client, table: str, limit: int = 1000) -> pd.DataFrame:
+    log.info(f"Extrayendo {table}...")
     all_rows = []
     offset = 0
-    limit = 5000
     while True:
-        resp = sb.table("ot_repuesto").select("*").range(offset, offset + limit - 1).execute()
+        resp = sb.table(table).select("*").range(offset, offset + limit - 1).execute()
         batch = resp.data
         if not batch:
             break
@@ -41,78 +40,87 @@ def extract_ots(sb: Client) -> pd.DataFrame:
         offset += limit
         log.info(f"  {len(batch)} filas (total acumulado: {len(all_rows)})")
     df = pd.DataFrame(all_rows)
-    log.info(f"Extraídas {len(df)} filas de ot_repuesto")
+    log.info(f"Total {table}: {len(df)} filas")
     return df
+
+
+def extract_ots(sb: Client) -> pd.DataFrame:
+    return extract_with_pagination(sb, "ot_repuesto")
 
 
 def extract_repuestos(sb: Client) -> pd.DataFrame:
-    log.info("Extrayendo catálogo de repuestos...")
-    resp = sb.table("repuesto").select("*").execute()
-    df = pd.DataFrame(resp.data)
-    log.info(f"Extraídos {len(df)} repuestos")
+    df = extract_with_pagination(sb, "repuesto")
+    if not df.empty and "c_repuesto" in df.columns:
+        df["c_repuesto"] = df["c_repuesto"].str.strip()
     return df
 
 
-def extract_plus(sb: Client) -> pd.DataFrame:
-    log.info("Extrayendo datos plus de repuestos (precios, marcas, categorías)...")
-    resp = sb.table("repuesto").select("codigo,precio_venta,precio_compra,marca,categoria,garantia_meses,stock_actual,stock_minimo,stock_maximo").execute()
-    df = pd.DataFrame(resp.data)
-    log.info(f"Extraídos datos plus de {len(df)} repuestos")
-    return df
+def extract_stock(sb: Client) -> pd.DataFrame:
+    return extract_with_pagination(sb, "stock")
 
 
-def build_demanda_mensual(ots: pd.DataFrame, repuestos: pd.DataFrame) -> pd.DataFrame:
+def extract_ordenes_trabajo(sb: Client) -> pd.DataFrame:
+    return extract_with_pagination(sb, "orden_trabajo")
+
+
+def build_demanda_mensual(ots: pd.DataFrame, repuestos: pd.DataFrame, stock: pd.DataFrame, ots_header: pd.DataFrame) -> pd.DataFrame:
     log.info("Agregando demanda mensual por repuesto...")
     df = ots.copy()
 
-    if "fecha" in df.columns:
-        df["fecha"] = pd.to_datetime(df["fecha"])
-    elif "fecha_ot" in df.columns:
-        df["fecha"] = pd.to_datetime(df["fecha_ot"])
-    elif "created_at" in df.columns:
-        df["fecha"] = pd.to_datetime(df["created_at"])
-    else:
-        df["fecha"] = pd.to_datetime(df.get("fecha_ingreso", df.get("fecha_registro", pd.Timestamp.now())))
+    # Filter out SIN_CODIGO
+    df = df[df["producto_id"] != "SIN_CODIGO"].copy()
 
+    # Parse fecha from fecha_registro_ts
+    df["fecha"] = pd.to_datetime(df["fecha_registro_ts"])
     df["anio"] = df["fecha"].dt.year
     df["mes"] = df["fecha"].dt.month
 
-    producto_col = "producto_id" if "producto_id" in df.columns else "codigo_repuesto"
-    cantidad_col = "cantidad" if "cantidad" in df.columns else "unidades"
+    # Join KM data from orden_trabajo
+    if not ots_header.empty:
+        ot_km = ots_header[["n_ot", "km"]].dropna()
+        df = df.merge(ot_km, on="n_ot", how="left")
 
-    mensual = df.groupby([producto_col, "anio", "mes"], as_index=False).agg(
-        demanda_total=(cantidad_col, "sum"),
-        n_ots=(cantidad_col, "count"),
-    )
-    mensual.rename(columns={producto_col: "codigo"}, inplace=True)
+    # Aggregate by producto_id + anio + mes
+    agg_dict = {
+        "demanda_total": ("cantidad", "sum"),
+        "n_ots": ("id", "count"),
+        "precio_unitario_promedio": ("precio_unitario", "mean"),
+    }
+    if "km" in df.columns:
+        agg_dict["km_promedio"] = ("km", "mean")
 
-    precio_col = None
-    for col in ["precio_venta", "precio_compra", "precio"]:
-        if col in repuestos.columns:
-            precio_col = col
-            break
+    mensual = df.groupby(["producto_id", "anio", "mes"], as_index=False).agg(**agg_dict)
+    mensual.rename(columns={"producto_id": "codigo"}, inplace=True)
 
-    if repuestos is not None and not repuestos.empty:
-        rep_dict = repuestos.set_index("codigo")[["marca", "categoria", "garantia_meses", "stock_actual", "stock_minimo", "stock_maximo"]].to_dict("index")
-        if precio_col:
-            precio_dict = repuestos.set_index("codigo")[precio_col].to_dict()
-            mensual["precio"] = mensual["codigo"].map(precio_dict)
+    # Ensure km_promedio exists even if no OT join
+    if "km_promedio" not in mensual.columns:
+        mensual["km_promedio"] = np.nan
+
+    # Join repuesto data (marca only)
+    if not repuestos.empty:
+        # Drop duplicate c_repuesto keeping first, strip not needed (already done in extract)
+        rep_dedup = repuestos.drop_duplicates(subset="c_repuesto", keep="first")
+        rep_dict = rep_dedup.set_index("c_repuesto")[["marca"]].to_dict("index")
         mensual["marca"] = mensual["codigo"].map(lambda c: rep_dict.get(c, {}).get("marca", "DESCONOCIDA"))
-        mensual["categoria"] = mensual["codigo"].map(lambda c: rep_dict.get(c, {}).get("categoria", "GENERAL"))
-        mensual["garantia_meses"] = mensual["codigo"].map(lambda c: rep_dict.get(c, {}).get("garantia_meses", 0))
-        mensual["stock_actual"] = mensual["codigo"].map(lambda c: rep_dict.get(c, {}).get("stock_actual", 0))
-        mensual["stock_minimo"] = mensual["codigo"].map(lambda c: rep_dict.get(c, {}).get("stock_minimo", 0))
-        mensual["stock_maximo"] = mensual["codigo"].map(lambda c: rep_dict.get(c, {}).get("stock_maximo", 0))
     else:
-        mensual["precio"] = 0.0
         mensual["marca"] = "DESCONOCIDA"
-        mensual["categoria"] = "GENERAL"
-        mensual["garantia_meses"] = 0
+
+    # Join stock data
+    if not stock.empty:
+        stock = stock.copy()
+        if "c_repuesto" in stock.columns:
+            stock["c_repuesto"] = stock["c_repuesto"].str.strip()
+        stock_dedup = stock.drop_duplicates(subset="c_repuesto", keep="first")
+        stock_dict = stock_dedup.set_index("c_repuesto")[["stock", "stock_minimo", "stock_maximo"]].to_dict("index")
+        mensual["stock_actual"] = mensual["codigo"].map(lambda c: stock_dict.get(c, {}).get("stock", 0))
+        mensual["stock_minimo"] = mensual["codigo"].map(lambda c: stock_dict.get(c, {}).get("stock_minimo", 0))
+        mensual["stock_maximo"] = mensual["codigo"].map(lambda c: stock_dict.get(c, {}).get("stock_maximo", 0))
+    else:
         mensual["stock_actual"] = 0.0
         mensual["stock_minimo"] = 0.0
         mensual["stock_maximo"] = 0.0
 
-    mensual["fecha"] = pd.to_datetime(mensual["anio"].astype(str) + "-" + mensual["mes"].astype(str) + "-01")
+    mensual["fecha"] = pd.to_datetime(mensual["anio"].astype(str) + "-" + mensual["mes"].astype(str).str.zfill(2) + "-01")
     mensual.sort_values(["codigo", "fecha"], inplace=True)
     mensual.reset_index(drop=True, inplace=True)
 
@@ -126,18 +134,14 @@ def run_etl() -> pd.DataFrame:
     sb = get_supabase()
     ots = extract_ots(sb)
     repuestos = extract_repuestos(sb)
-    plus = extract_plus(sb)
+    stock = extract_stock(sb)
+    ots_header = extract_ordenes_trabajo(sb)
 
-    if not plus.empty:
-        for col in plus.columns:
-            if col != "codigo":
-                repuestos[col] = repuestos["codigo"].map(plus.set_index("codigo")[col])
-
-    mensual = build_demanda_mensual(ots, repuestos)
+    mensual = build_demanda_mensual(ots, repuestos, stock, ots_header)
 
     csv_path = DATA_CLEAN / "demanda_mensual.csv"
     mensual.to_csv(csv_path, index=False)
-    log.info(f"Demanda mensual guardada en {csv_path} ({len(mensual)} filas)")
+    log.info(f"Demanda mensual guardada en {csv_path} ({len(mensual)} filas, {mensual.codigo.nunique()} SKUs)")
     return mensual
 
 

@@ -22,8 +22,8 @@ MODEL_PATH = Path(__file__).parent / "model.pkl"
 
 FEATURE_COLS = [
     "codigo_enc", "mes", "anio", "km_log", "km_por_mes",
-    "mes_sin", "mes_cos", "precio_log", "garantia_meses",
-    "sobre_stock", "marca_enc", "categoria_enc",
+    "mes_sin", "mes_cos", "precio_log",
+    "sobre_stock", "marca_enc",
     "lag_1", "lag_3", "rolling_mean_3",
 ]
 
