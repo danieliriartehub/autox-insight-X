@@ -372,9 +372,10 @@ jobs:
 
       - name: Deploy Backend → Railway
         continue-on-error: true
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
         run: |
           npm install -g @railway/cli
-          railway login --token ${{ secrets.RAILWAY_BACKEND_TOKEN }}
           railway link ${{ secrets.RAILWAY_PROJECT_ID }}
           railway up --service backend
 
