@@ -299,6 +299,21 @@ jobs:
             sleep 2
           done
 
+      - name: E2E Tests with Playwright
+        run: |
+          npx playwright install --with-deps chromium
+          npx playwright test
+        continue-on-error: true
+
+      - name: Integration Test (API)
+        continue-on-error: true
+        run: |
+          RESPONSE=$(curl -s -X POST http://localhost:8000/api/v1/ml/predict \
+            -H "Content-Type: application/json" \
+            -d '{"codigo_repuesto":"FILTRO01","mes":6,"km":15000}')
+          echo "API Response: $RESPONSE"
+          echo "$RESPONSE" | grep -q "cantidad_estimada" && echo " Integration test PASSED" || exit 1
+
       - name: OWASP ZAP Full Scan
         uses: zaproxy/action-full-scan@v0.13.0
         continue-on-error: true
@@ -316,21 +331,6 @@ jobs:
           name: zap-report
           path: zap-report.html
           retention-days: 7
-
-      - name: E2E Tests with Playwright
-        run: |
-          npx playwright install --with-deps chromium
-          npx playwright test
-        continue-on-error: true
-
-      - name: Integration Test (API)
-        continue-on-error: true
-        run: |
-          RESPONSE=$(curl -s -X POST http://localhost:8000/api/v1/ml/predict \
-            -H "Content-Type: application/json" \
-            -d '{"codigo_repuesto":"FILTRO01","mes":6,"km":15000}')
-          echo "API Response: $RESPONSE"
-          echo "$RESPONSE" | grep -q "cantidad_estimada" && echo " Integration test PASSED" || exit 1
 
       - name: Cleanup
         if: always()
