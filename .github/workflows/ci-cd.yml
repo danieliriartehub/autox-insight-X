@@ -284,7 +284,7 @@ jobs:
         run: |
           echo "Waiting for backend..."
           for i in $(seq 1 30); do
-            curl -sf http://localhost:8000/api/v1/health && echo " Backend ready" && break
+            curl -sf http://localhost:8000/api/v1/ml/health && echo " Backend ready" && break
             echo "Attempt $i/30..."
             sleep 2
           done
@@ -298,6 +298,21 @@ jobs:
             echo "Attempt $i/15..."
             sleep 2
           done
+
+      - name: E2E Tests with Playwright
+        run: |
+          npx playwright install --with-deps chromium
+          npx playwright test
+        continue-on-error: true
+
+      - name: Integration Test (API)
+        continue-on-error: true
+        run: |
+          RESPONSE=$(curl -s -X POST http://localhost:8000/api/v1/ml/predict \
+            -H "Content-Type: application/json" \
+            -d '{"codigo_repuesto":"FILTRO01","mes":6,"km":15000}')
+          echo "API Response: $RESPONSE"
+          echo "$RESPONSE" | grep -q "cantidad_estimada" && echo " Integration test PASSED" || exit 1
 
       - name: OWASP ZAP Full Scan
         uses: zaproxy/action-full-scan@v0.13.0
@@ -316,21 +331,6 @@ jobs:
           name: zap-report
           path: zap-report.html
           retention-days: 7
-
-      - name: E2E Tests with Playwright
-        run: |
-          npx playwright install --with-deps chromium
-          npx playwright test
-        continue-on-error: true
-
-      - name: Integration Test (API)
-        continue-on-error: true
-        run: |
-          RESPONSE=$(curl -s -X POST http://localhost:8000/api/v1/ml/predict \
-            -H "Content-Type: application/json" \
-            -d '{"codigo_repuesto":"FILTRO01","mes":6,"km":15000}')
-          echo "API Response: $RESPONSE"
-          echo "$RESPONSE" | grep -q "cantidad_estimada" && echo " Integration test PASSED" || exit 1
 
       - name: Cleanup
         if: always()
@@ -370,11 +370,30 @@ jobs:
           vercel build --prod --token=${{ secrets.VERCEL_FRONTEND_TOKEN }}
           vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_FRONTEND_TOKEN }}
 
+      - name: Setup Python for Model Training
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Train & Deploy Model v4.0
+        continue-on-error: true
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          VITE_SUPABASE_SERVICE_KEY: ${{ secrets.VITE_SUPABASE_SERVICE_KEY }}
+        run: |
+          pip install -r api/requirements.txt python-dotenv
+          python -m ml.etl.etl_from_supabase
+          python -m ml.create_features
+          python -m ml.train
+          python -m ml.deploy_model
+
       - name: Deploy Backend → Railway
         continue-on-error: true
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
         run: |
           npm install -g @railway/cli
-          railway login --token ${{ secrets.RAILWAY_BACKEND_TOKEN }}
           railway link ${{ secrets.RAILWAY_PROJECT_ID }}
           railway up --service backend
 
@@ -382,9 +401,16 @@ jobs:
         continue-on-error: true
         run: |
           echo "Waiting for production backend..."
-          sleep 15
+          sleep 20
           curl --retry 10 --retry-delay 10 \
-            https://autox-insight-backend-production.up.railway.app/api/v1/health
+            https://autox-insight-backend-production.up.railway.app/api/v1/ml/health
+
+      - name: Verify Model Loaded
+        continue-on-error: true
+        run: |
+          STATUS=$(curl -sf https://autox-insight-backend-production.up.railway.app/api/v1/ml/status)
+          echo "ML Status: $STATUS"
+          echo "$STATUS" | grep -q "v4.0" && echo "Model v4.0 loaded successfully" || echo "Warning: version check failed"
 
   # ════════════════════════════════════════════════════════
   #  JOB 5: Quality Gate Summary (reporte final)

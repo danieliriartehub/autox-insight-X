@@ -161,7 +161,6 @@ function PrediccionPage() {
   const [mlStatusLoading, setMLLoading] = useState(true);
 
   const cargarStatus = () => {
-    setMLLoading(true);
     fetchMLStatus()
       .then(setMLStatus)
       .catch(() => setMLStatus(null))
@@ -199,16 +198,6 @@ function PrediccionPage() {
     ? predValues.reduce((s, p) => s + p.confianza, 0) / predValues.length
     : 0;
 
-  let deficitTotal = 0;
-  let itemsEnQuiebre = 0;
-  const rawChartData: Array<{
-    name: string;
-    codigo: string;
-    stock: number;
-    demanda: number;
-    deficit: number;
-  }> = [];
-
   // Cruza stock actual con predicción ML para cada repuesto
   const ocData = repuestos.map((p) => {
     const pred = predictions[p.codigo];
@@ -225,21 +214,19 @@ function PrediccionPage() {
     const deficit = Math.max(0, demandaMesSig - stockSimulado);
     const compraSugerida = deficit > 0 ? Math.ceil(deficit * 1.15) : 0;
 
-    if (deficit > 0) {
-      deficitTotal += deficit;
-      itemsEnQuiebre++;
-    }
-
-    rawChartData.push({
-      name: p.repuesto.split(" ")[0],
-      codigo: p.codigo,
-      stock: stockSimulado,
-      demanda: demandaMesSig,
-      deficit,
-    });
-
     return { ...p, stockActual: stockSimulado, demandaMesSig, deficit, compraSugerida, pred, conf };
   });
+
+  // Cálculos agregados
+  const deficitTotal = ocData.reduce((s, d) => s + d.deficit, 0);
+  const itemsEnQuiebre = ocData.filter((d) => d.deficit > 0).length;
+  const rawChartData = ocData.map((d) => ({
+    name: d.repuesto.split(" ")[0],
+    codigo: d.codigo,
+    stock: d.stockActual,
+    demanda: d.demandaMesSig,
+    deficit: d.deficit,
+  }));
 
   // Filtra solo ítems con compra sugerida > 0
   const repuestosAComprar = ocData.filter((d) => d.compraSugerida > 0);
@@ -647,7 +634,6 @@ function PrediccionPage() {
                     <span className="text-[10px] font-medium uppercase text-muted-foreground">
                       Resultado del motor IA
                     </span>
-                    {/* Etiqueta de confiabilidad REAL calculada por el backend (RF-10) */}
                     <Badge
                       variant="outline"
                       className={
@@ -672,6 +658,17 @@ function PrediccionPage() {
                     </span>
                     <span className="text-sm text-muted-foreground mb-1">uds / mes</span>
                   </div>
+                  <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                    <span>
+                      IC 80%: <b className="text-foreground">{predResult.confianza_lower}</b>
+                      {" – "}
+                      <b className="text-foreground">{predResult.confianza_upper}</b> uds
+                    </span>
+                    <span className="text-muted-foreground/50">|</span>
+                    <span>
+                      Error típico: <b className="text-foreground">±{predResult.mae_referencia}</b>
+                    </span>
+                  </div>
                   <div>
                     <div className="flex justify-between text-[10px] text-muted-foreground mb-1">
                       <span>
@@ -682,6 +679,34 @@ function PrediccionPage() {
                     </div>
                     <Progress value={predResult.confianza * 100} className="h-2" />
                   </div>
+                  {Object.keys(predResult.feature_importance).length > 0 && (
+                    <div className="border-t border-primary/10 pt-2">
+                      <span className="text-[10px] font-medium uppercase text-muted-foreground block mb-1.5">
+                        Factores que más influyen
+                      </span>
+                      <div className="space-y-1">
+                        {Object.entries(predResult.feature_importance)
+                          .sort(([, a], [, b]) => b - a)
+                          .slice(0, 5)
+                          .map(([feat, imp]) => (
+                            <div key={feat} className="flex items-center gap-2">
+                              <span className="text-[10px] text-muted-foreground w-24 truncate shrink-0">
+                                {feat.replace(/_/g, " ")}
+                              </span>
+                              <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
+                                <div
+                                  className="h-full bg-primary rounded-full transition-all duration-500"
+                                  style={{ width: `${Math.min(imp, 100)}%` }}
+                                />
+                              </div>
+                              <span className="text-[10px] font-mono text-muted-foreground w-8 text-right">
+                                {imp.toFixed(0)}%
+                              </span>
+                            </div>
+                          ))}
+                      </div>
+                    </div>
+                  )}
                   <p className="text-[11px] leading-snug text-muted-foreground border-t border-primary/10 pt-2">
                     {predResult.explicacion}
                   </p>

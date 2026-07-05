@@ -1,36 +1,21 @@
-// ── Servicios de IA / ML ──────────────────────────────────────────────────────
-// Cliente HTTP para el backend Railway de AutoX Insight.
-// Implementa los endpoints de predicción (RF-09), confianza (RF-10),
-// estado del modelo (RF-11), reentrenamiento (RF-15) y OCs inteligentes (RF-12).
-
 import { supabase } from "@/lib/supabase";
 
 const API_BASE =
   (import.meta.env.VITE_API_URL as string | undefined) ??
   "https://autox-insight-backend-production.up.railway.app";
 
-// ── Auth helper ─────────────────────────────────────────────────────────────
-// Los endpoints protegidos (retrain, generar OC) exigen el JWT de Supabase.
-// La sesión se obtiene de la cookie HttpOnly gestionada por Supabase Auth.
 async function authHeaders(): Promise<Record<string, string>> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data } = await (supabase.auth as any).getSession();
+  const { data } = await supabase.auth.getSession();
   const token = data.session?.access_token;
   return token
     ? { "Content-Type": "application/json", Authorization: `Bearer ${token}` }
     : { "Content-Type": "application/json" };
 }
 
-// ── Predicción (RF-09 / RF-10) ──────────────────────────────────────────────
-
 export interface PredictRequest {
-  /** Código exacto del repuesto (campo producto_id en Supabase) */
   codigo_repuesto: string;
-  /** Mes objetivo 1–12 */
   mes: number;
-  /** Kilometraje promedio del vehículo (variable de contexto — RF-09) */
   km?: number;
-  /** Año objetivo. Si se omite, el modelo usa el año más frecuente del entrenamiento */
   anio?: number;
 }
 
@@ -38,25 +23,19 @@ export interface PredictResponse {
   codigo_repuesto: string;
   mes: number;
   anio: number;
-  /** Unidades estimadas a demandar */
   cantidad_estimada: number;
-  /** Confianza 0–1 CALCULADA en runtime (densidad histórica + magnitud) */
   confianza: number;
-  /** True si confianza ≥ 80% (umbral de negocio — RF-10) */
+  confianza_lower: number;
+  confianza_upper: number;
   alta_confiabilidad: boolean;
-  /** 'Alta Confiabilidad' | 'Confianza Media' | 'Extrapolación (baja confianza)' */
   etiqueta_confianza: string;
-  /** True si el repuesto estaba en los datos de entrenamiento */
   repuesto_conocido: boolean;
-  /** Nº de meses de historia del SKU (base de la confianza) */
   observaciones_historicas: number;
-  /** MAE del modelo en unidades */
   mae_referencia: number;
-  /** Explicación legible de la confianza */
+  feature_importance: Record<string, number>;
   explicacion: string;
 }
 
-/** POST /api/v1/ml/predict — predicción puntual con confianza real. */
 export async function fetchPrediction(req: PredictRequest): Promise<PredictResponse> {
   const res = await fetch(`${API_BASE}/api/v1/ml/predict`, {
     method: "POST",
@@ -66,8 +45,6 @@ export async function fetchPrediction(req: PredictRequest): Promise<PredictRespo
   if (!res.ok) throw new Error(`API error ${res.status}`);
   return res.json() as Promise<PredictResponse>;
 }
-
-// ── Estado del modelo (RF-11) ───────────────────────────────────────────────
 
 export interface MLMetrics {
   mae: number | null;
@@ -91,14 +68,11 @@ export interface MLStatusResponse {
   metrics: MLMetrics | null;
 }
 
-/** GET /api/v1/ml/status — salud del modelo + métricas embebidas. */
 export async function fetchMLStatus(): Promise<MLStatusResponse> {
   const res = await fetch(`${API_BASE}/api/v1/ml/status`);
   if (!res.ok) throw new Error(`API error ${res.status}`);
   return res.json();
 }
-
-// ── Reentrenamiento (RF-15) ─────────────────────────────────────────────────
 
 export interface RetrainResponse {
   promovido: boolean;
@@ -111,7 +85,6 @@ export interface RetrainResponse {
   mensaje: string;
 }
 
-/** POST /api/v1/ml/retrain — reentrena con gate de calidad + hot-reload. */
 export async function retrainModel(opts?: {
   correr_etl?: boolean;
   forzar_promocion?: boolean;
@@ -131,8 +104,6 @@ export async function retrainModel(opts?: {
   }
   return res.json() as Promise<RetrainResponse>;
 }
-
-// ── Órdenes de Compra Inteligentes (RF-12) ──────────────────────────────────
 
 export interface PurchaseProposal {
   codigo_repuesto: string;
@@ -161,7 +132,6 @@ export interface SuggestionsResponse {
   propuestas: PurchaseProposal[];
 }
 
-/** GET /api/v1/purchase-orders/suggestions — propuestas de OC por IA. */
 export async function fetchPurchaseSuggestions(params: {
   mes: number;
   anio?: number;
@@ -191,7 +161,6 @@ export interface GenerateOCResponse {
   mensaje: string;
 }
 
-/** POST /api/v1/purchase-orders/generate — persiste la OC en orden_compra_detalle. */
 export async function generatePurchaseOrder(
   items: { codigo_repuesto: string; compra_sugerida: number }[],
   observacion?: string,
