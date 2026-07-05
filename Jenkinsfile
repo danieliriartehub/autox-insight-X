@@ -155,7 +155,7 @@ pipeline {
                         -d '{"codigo_repuesto":"FILTRO01","mes":6,"km":15000}'
 
                     # Test de health ML
-                    curl -s http://localhost:8000/ml/health
+                    curl -s http://localhost:8000/api/v1/ml/status
                 '''
             }
             post {

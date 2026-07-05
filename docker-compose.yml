@@ -7,8 +7,6 @@
 #           Ideal para CI/CD y desarrollo local.
 # ──────────────────────────────────────────────────────────
 
-version: "3.9"
-
 services:
   # ── Frontend React ────────────────────────────────────
   frontend:

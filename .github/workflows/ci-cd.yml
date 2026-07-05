@@ -169,21 +169,34 @@ jobs:
           sarif_file: "trivy-results.sarif"
         continue-on-error: true
 
-      - name: Dockerfile Lint (Hadolint)
+      - name: Dockerfile Lint (Hadolint) — Frontend
         uses: hadolint/hadolint-action@v3.3.0
         with:
-          dockerfile: Dockerfile.frontend Dockerfile.backend
+          dockerfile: Dockerfile.frontend
           config: .hadolint.yaml
           format: sarif
-          output-file: hadolint-results.sarif
-        # ── RAZÓN: Hadolint lintea Dockerfiles contra
-        #    mejores prácticas de seguridad y eficiencia ──
+          output-file: hadolint-results-frontend.sarif
         continue-on-error: true
 
-      - name: Upload Hadolint results
+      - name: Dockerfile Lint (Hadolint) — Backend
+        uses: hadolint/hadolint-action@v3.3.0
+        with:
+          dockerfile: Dockerfile.backend
+          config: .hadolint.yaml
+          format: sarif
+          output-file: hadolint-results-backend.sarif
+        continue-on-error: true
+
+      - name: Upload Hadolint results (Frontend)
         uses: github/codeql-action/upload-sarif@v4
         with:
-          sarif_file: hadolint-results.sarif
+          sarif_file: hadolint-results-frontend.sarif
+        continue-on-error: true
+
+      - name: Upload Hadolint results (Backend)
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: hadolint-results-backend.sarif
         continue-on-error: true
 
       - name: IaC Security Scan (Checkov)
