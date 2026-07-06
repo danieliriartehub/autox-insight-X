@@ -23,7 +23,7 @@ test.describe("Taller Page — /taller", () => {
   });
 
   test("pagination controls are rendered", async ({ page }) => {
-    await expect(page.locator("text=Página 1 de 1")).toBeVisible();
+    await expect(page.locator("text=Página 1 de 1").first()).toBeVisible();
     const prevBtn = page.locator("button:has(svg.lucide-chevron-left)");
     const nextBtn = page.locator("button:has(svg.lucide-chevron-right)");
 
