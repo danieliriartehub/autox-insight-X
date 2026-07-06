@@ -11,6 +11,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Gauge, ShieldCheck, Eye, EyeOff, LogIn, AlertCircle } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { ForgotPasswordModal } from "@/components/ForgotPasswordModal";
 
 // ── Definición de la ruta ─────────────────────────────────
 export const Route = createFileRoute("/")({
@@ -49,6 +50,7 @@ function LoginPage() {
   const { login, loginError } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [forgotOpen, setForgotOpen] = useState(false);
 
   // Hook form con resolver de Zod para validación en tiempo real
   const {
@@ -185,15 +187,19 @@ function LoginPage() {
               </div>
             )}
 
+            {/* Modal de recuperacion + trigger */}
+            <ForgotPasswordModal open={forgotOpen} onOpenChange={setForgotOpen} />
+
             {/* Link para recuperar contraseña */}
             <div className="flex justify-end">
-              <a
+              <button
                 id="forgot-password-link"
-                href="#"
+                type="button"
+                onClick={() => setForgotOpen(true)}
                 className="cursor-pointer text-xs text-[#03369A] hover:underline"
               >
                 ¿Olvidaste tu contraseña?
-              </a>
+              </button>
             </div>
 
             {/* Botón de envío */}

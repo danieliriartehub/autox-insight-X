@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as TallerRouteImport } from './routes/taller'
+import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as PrediccionRouteImport } from './routes/prediccion'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as CatalogoRouteImport } from './routes/catalogo'
@@ -20,6 +21,11 @@ import { Route as IndexRouteImport } from './routes/index'
 const TallerRoute = TallerRouteImport.update({
   id: '/taller',
   path: '/taller',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ResetPasswordRoute = ResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PrediccionRoute = PrediccionRouteImport.update({
@@ -60,6 +66,7 @@ export interface FileRoutesByFullPath {
   '/catalogo': typeof CatalogoRoute
   '/dashboard': typeof DashboardRoute
   '/prediccion': typeof PrediccionRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/taller': typeof TallerRoute
 }
 export interface FileRoutesByTo {
@@ -69,6 +76,7 @@ export interface FileRoutesByTo {
   '/catalogo': typeof CatalogoRoute
   '/dashboard': typeof DashboardRoute
   '/prediccion': typeof PrediccionRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/taller': typeof TallerRoute
 }
 export interface FileRoutesById {
@@ -79,6 +87,7 @@ export interface FileRoutesById {
   '/catalogo': typeof CatalogoRoute
   '/dashboard': typeof DashboardRoute
   '/prediccion': typeof PrediccionRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/taller': typeof TallerRoute
 }
 export interface FileRouteTypes {
@@ -90,6 +99,7 @@ export interface FileRouteTypes {
     | '/catalogo'
     | '/dashboard'
     | '/prediccion'
+    | '/reset-password'
     | '/taller'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -99,6 +109,7 @@ export interface FileRouteTypes {
     | '/catalogo'
     | '/dashboard'
     | '/prediccion'
+    | '/reset-password'
     | '/taller'
   id:
     | '__root__'
@@ -108,6 +119,7 @@ export interface FileRouteTypes {
     | '/catalogo'
     | '/dashboard'
     | '/prediccion'
+    | '/reset-password'
     | '/taller'
   fileRoutesById: FileRoutesById
 }
@@ -118,6 +130,7 @@ export interface RootRouteChildren {
   CatalogoRoute: typeof CatalogoRoute
   DashboardRoute: typeof DashboardRoute
   PrediccionRoute: typeof PrediccionRoute
+  ResetPasswordRoute: typeof ResetPasswordRoute
   TallerRoute: typeof TallerRoute
 }
 
@@ -128,6 +141,13 @@ declare module '@tanstack/react-router' {
       path: '/taller'
       fullPath: '/taller'
       preLoaderRoute: typeof TallerRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reset-password': {
+      id: '/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof ResetPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/prediccion': {
@@ -182,6 +202,7 @@ const rootRouteChildren: RootRouteChildren = {
   CatalogoRoute: CatalogoRoute,
   DashboardRoute: DashboardRoute,
   PrediccionRoute: PrediccionRoute,
+  ResetPasswordRoute: ResetPasswordRoute,
   TallerRoute: TallerRoute,
 }
 export const routeTree = rootRouteImport

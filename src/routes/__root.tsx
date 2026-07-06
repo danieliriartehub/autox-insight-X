@@ -101,7 +101,7 @@ function RootComponent() {
 function AuthGuard() {
   const { isLoading, isAuthenticated } = useAuth();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const isPublic = pathname === "/";
+  const isPublic = pathname === "/" || pathname === "/reset-password";
 
   if (isLoading) {
     return (

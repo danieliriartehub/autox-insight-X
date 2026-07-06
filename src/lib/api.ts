@@ -67,6 +67,28 @@ export const authApi = {
 
   /** POST /api/v1/auth/logout — elimina la cookie HttpOnly */
   logout: () => apiFetch<{ message: string }>("/api/v1/auth/logout", { method: "POST" }),
+
+  /**
+   * POST /api/v1/auth/request-reset
+   * Dispara el envío de email de recuperación de contraseña.
+   * Siempre responde 200 para evitar user enumeration.
+   */
+  requestReset: (email: string) =>
+    apiFetch<{ message: string }>("/api/v1/auth/request-reset", {
+      method: "POST",
+      body: JSON.stringify({ email }),
+    }),
+
+  /**
+   * POST /api/v1/auth/confirm-reset
+   * Confirma la nueva contraseña usando el access_token del enlace del email.
+   * El backend usa service_role para actualizar la contraseña en Supabase Auth.
+   */
+  confirmReset: (access_token: string, new_password: string) =>
+    apiFetch<{ message: string }>("/api/v1/auth/confirm-reset", {
+      method: "POST",
+      body: JSON.stringify({ access_token, new_password }),
+    }),
 };
 
 // ── Endpoints de Órdenes de Trabajo ───────────────────────────────────────────
