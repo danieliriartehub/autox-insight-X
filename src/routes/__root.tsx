@@ -117,9 +117,9 @@ function AuthGuard() {
   }
 
   // Redirigir a dashboard si ya está autenticado y trata de acceder al login
-  if (isAuthenticated && isPublic) {
-    return <Navigate to="/dashboard" />;
-  }
+  // if (isAuthenticated && isPublic) {
+  //   return <Navigate to="/dashboard" />;
+  // }
 
   return (
     <>

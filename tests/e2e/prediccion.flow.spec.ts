@@ -32,7 +32,7 @@ test.describe("Prediccion Page — /prediccion", () => {
   });
 
   test("scenario selector switches between modes", async ({ page }) => {
-    const scenarioTrigger = page.locator("button:has(span:has-text('Operación Regular'))");
+    const scenarioTrigger = page.locator("button[role='combobox']").first();
     await expect(scenarioTrigger).toBeVisible();
 
     await scenarioTrigger.click();
