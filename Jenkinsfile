@@ -46,7 +46,7 @@ pipeline {
         stage('Install Dependencies') {
             steps {
                 sh 'npm install -g pnpm'
-                sh 'pnpm install --frozen-lockfile'
+                sh 'PNPM_CONFIG_MINIMUM_RELEASE_AGE=0 PNPM_CONFIG_MIN_RELEASE_AGE=0 NPM_CONFIG_MINIMUM_RELEASE_AGE=0 NPM_CONFIG_MIN_RELEASE_AGE=0 pnpm install --frozen-lockfile'
             }
         }
 
