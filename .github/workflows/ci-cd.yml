@@ -41,15 +41,24 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
       - name: Setup Node
         uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: "npm"
+          cache: "pnpm"
 
       - name: Install dependencies
-        run: npm ci --ignore-scripts
-        continue-on-error: true
+        run: pnpm install --frozen-lockfile --ignore-scripts
+        env:
+          PNPM_CONFIG_MINIMUM_RELEASE_AGE: 0
+          PNPM_CONFIG_MIN_RELEASE_AGE: 0
+          NPM_CONFIG_MINIMUM_RELEASE_AGE: 0
+          NPM_CONFIG_MIN_RELEASE_AGE: 0
 
       - name: Prettier Check
         run: npx prettier --check "src/**/*.{ts,tsx,css}"
@@ -63,39 +72,27 @@ jobs:
 
       - name: Spell Check (cspell)
         run: npx cspell --no-progress --no-must-find-files "src/**/*.{ts,tsx}" "tests/**/*.{ts,tsx}"
-        # ── RAZÓN: cspell detecta typos en identificadores,
-        #    comentarios y strings del código fuente ──
         continue-on-error: true
 
       - name: TypeScript TypeCheck
         run: npx tsc --noEmit
-        # ── RAZÓN: TypeScript estricto atrapa errores de
-        #    tipos que pasarían desapercibidos en JS puro ──
-        continue-on-error: true
 
       - name: Circular Dependency Check (Madge)
         run: npx madge --circular --warning --ts-config tsconfig.json src/
-        # ── RAZÓN: Madge detecta dependencias circulares
-        #    que causan problemas de mantenibilidad ──
         continue-on-error: true
 
       - name: Dead Code Detection (Knip)
         run: npx knip
-        # ── RAZÓN: Knip encuentra exports no usados,
-        #    dependencias fantasma y archivos huérfanos ──
         continue-on-error: true
 
       - name: Unused Dependency Check (depcheck)
         run: npx depcheck --ignores="@commitlint/*,cspell,knip,madge,depcheck"
-        # ── RAZÓN: depcheck identifica dependencias en
-        #    package.json que no se importan en el código ──
         continue-on-error: true
 
       - name: Unit & Functional Tests
-        run: npm run test -- --coverage
+        run: pnpm run test -- --coverage
         # ── RAZÓN: Vitest corre 20+ tests con cobertura.
         #    El flag --coverage genera reporte para SonarQube ──
-        continue-on-error: true
 
       - name: Install Playwright
         run: |
@@ -129,14 +126,19 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
       - name: Setup Node
         uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
 
-      - name: npm audit
-        run: npm audit --audit-level=high || true
-        # ── RAZÓN: npm audit revisa vulnerabilidades en
+      - name: pnpm audit
+        run: pnpm audit --audit-level=high || true
+        # ── RAZÓN: pnpm audit revisa vulnerabilidades en
         #    dependencias frontend. No falla el pipeline
         #    para no bloquear, pero se monitorea ──
 
@@ -241,11 +243,9 @@ jobs:
 
       - name: Build frontend image
         run: docker build -f Dockerfile.frontend -t autox-frontend:ci .
-        continue-on-error: true
 
       - name: Build backend image
         run: docker build -f Dockerfile.backend -t autox-backend:ci .
-        continue-on-error: true
 
       - name: Container Vulnerability Scan (Grype)
         uses: anchore/scan-action@v3
@@ -264,7 +264,6 @@ jobs:
         continue-on-error: true
 
       - name: Start services with Docker Compose
-        continue-on-error: true
         run: |
           docker compose -f docker-compose.yml up -d postgres-test
           docker run -d --name backend-ci \
@@ -280,17 +279,15 @@ jobs:
             autox-frontend:ci
 
       - name: Wait for backend health
-        continue-on-error: true
         run: |
           echo "Waiting for backend..."
           for i in $(seq 1 30); do
-            curl -sf http://localhost:8000/api/v1/ml/health && echo " Backend ready" && break
+            curl -sf http://localhost:8000/health && echo " Backend ready" && break
             echo "Attempt $i/30..."
             sleep 2
           done
 
       - name: Wait for frontend health
-        continue-on-error: true
         run: |
           echo "Waiting for frontend..."
           for i in $(seq 1 15); do
@@ -299,14 +296,31 @@ jobs:
             sleep 2
           done
 
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+        env:
+          PNPM_CONFIG_MINIMUM_RELEASE_AGE: 0
+          PNPM_CONFIG_MIN_RELEASE_AGE: 0
+          NPM_CONFIG_MINIMUM_RELEASE_AGE: 0
+          NPM_CONFIG_MIN_RELEASE_AGE: 0
+
       - name: E2E Tests with Playwright
         run: |
-          npx playwright install --with-deps chromium
-          npx playwright test
-        continue-on-error: true
+          pnpm exec playwright install --with-deps chromium
+          pnpm exec playwright test
 
       - name: Integration Test (API)
-        continue-on-error: true
         run: |
           RESPONSE=$(curl -s -X POST http://localhost:8000/api/v1/ml/predict \
             -H "Content-Type: application/json" \
@@ -361,14 +375,12 @@ jobs:
         run: npm install -g vercel
 
       - name: Deploy Frontend → Vercel
-        continue-on-error: true
         env:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
         run: |
-          vercel pull --yes --token=${{ secrets.VERCEL_FRONTEND_TOKEN }} --environment=production
-          vercel build --prod --token=${{ secrets.VERCEL_FRONTEND_TOKEN }}
-          vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_FRONTEND_TOKEN }}
+          # Sube el código fuente a Vercel delegando el build e inyección de variables de entorno de forma nativa
+          vercel deploy --prod --yes --token=${{ secrets.VERCEL_FRONTEND_TOKEN }}
 
       - name: Setup Python for Model Training
         uses: actions/setup-python@v5
@@ -376,7 +388,6 @@ jobs:
           python-version: ${{ env.PYTHON_VERSION }}
 
       - name: Train & Deploy Model v4.0
-        continue-on-error: true
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
@@ -389,7 +400,6 @@ jobs:
           python -m ml.deploy_model
 
       - name: Deploy Backend → Railway
-        continue-on-error: true
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
         run: |
@@ -398,15 +408,13 @@ jobs:
           railway up --service backend
 
       - name: Post-Deploy Health Check
-        continue-on-error: true
         run: |
           echo "Waiting for production backend..."
           sleep 20
           curl --retry 10 --retry-delay 10 \
-            https://autox-insight-backend-production.up.railway.app/api/v1/ml/health
+            https://autox-insight-backend-production.up.railway.app/health
 
       - name: Verify Model Loaded
-        continue-on-error: true
         run: |
           STATUS=$(curl -sf https://autox-insight-backend-production.up.railway.app/api/v1/ml/status)
           echo "ML Status: $STATUS"

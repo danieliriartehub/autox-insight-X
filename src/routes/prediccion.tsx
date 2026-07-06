@@ -71,6 +71,8 @@ import {
   fetchMLStatus,
   retrainModel,
   generatePurchaseOrder,
+  fetchPurchaseSuggestions,
+  type PurchaseProposal,
   type PredictResponse,
   type MLStatusResponse,
   type RetrainResponse,
@@ -171,6 +173,23 @@ function PrediccionPage() {
     cargarStatus();
   }, []);
 
+  // ── Sugerencias de compra desde el backend (RF-12 unificada) ────────────────
+  // Centraliza el cálculo de déficit en el backend para evitar duplicación de lógica
+  const [suggestionsData, setSuggestionsData] = useState<PurchaseProposal[]>([]);
+  const [suggestionsLoading, setSuggestionsLoading] = useState(true);
+
+  const cargarSugerencias = () => {
+    setSuggestionsLoading(true);
+    fetchPurchaseSuggestions({ mes: mesActual, anio: anioActual, solo_quiebres: false })
+      .then((res) => setSuggestionsData(res.propuestas ?? []))
+      .catch(() => setSuggestionsData([]))
+      .finally(() => setSuggestionsLoading(false));
+  };
+
+  useEffect(() => {
+    cargarSugerencias();
+  }, [mesActual, anioActual]);
+
   // ── Reentrenamiento del modelo (RF-15) ────────────────────────────────────
   const [retraining, setRetraining] = useState(false);
   const [retrainResult, setRetrainResult] = useState<RetrainResponse | null>(null);
@@ -199,23 +218,53 @@ function PrediccionPage() {
     : 0;
 
   // Cruza stock actual con predicción ML para cada repuesto
-  const ocData = repuestos.map((p) => {
-    const pred = predictions[p.codigo];
-    const conf = pred ? pred.confianza * 100 : 0;
-
-    // Demanda base: usa predicción ML si hay confianza ≥ 70%, si no usa promedio histórico
-    const demandaBase = pred && conf >= 70 ? pred.cantidad_estimada : Math.round(p.demanda / 12);
-
-    // Aplica factores del escenario simulado
-    const demandaMesSig = Math.round(demandaBase * factores.demandaMulti);
-    const stockSimulado = Math.round(p.stockActual * factores.stockMulti);
-
-    // Déficit = demanda insatisfecha / compra sugerida = déficit + 15% buffer
-    const deficit = Math.max(0, demandaMesSig - stockSimulado);
-    const compraSugerida = deficit > 0 ? Math.ceil(deficit * 1.15) : 0;
-
-    return { ...p, stockActual: stockSimulado, demandaMesSig, deficit, compraSugerida, pred, conf };
-  });
+  // Usa las sugerencias del backend (fetchPurchaseSuggestions) como fuente principal;
+  // si el backend no está disponible, fallback al cálculo local con usePredictions
+  const ocData = useMemo(() => {
+    if (suggestionsData.length > 0) {
+      const sugMap = new Map(suggestionsData.map((s) => [s.codigo_repuesto, s]));
+      // Fallback: construir data también para repuestos que el backend no devolvió
+      const knownCodigos = new Set(suggestionsData.map((s) => s.codigo_repuesto));
+      return repuestos.map((p) => {
+        const sug = sugMap.get(p.codigo);
+        if (sug) {
+          const demandaAjustada = Math.round(sug.demanda_ia * factores.demandaMulti);
+          const stockAjustado = Math.round(sug.stock_actual * factores.stockMulti);
+          const deficit = Math.max(0, demandaAjustada - stockAjustado);
+          const compraSugerida = deficit > 0 ? Math.ceil(deficit * 1.15) : 0;
+          return {
+            ...p,
+            stockActual: stockAjustado,
+            demandaMesSig: demandaAjustada,
+            deficit,
+            compraSugerida,
+            conf: Math.round(sug.confianza_ia * 100),
+            pred: sug,
+          };
+        }
+        // Repuesto no cubierto por backend: fallback local
+        const pred = predictions[p.codigo];
+        const conf = pred ? pred.confianza * 100 : 0;
+        const demandaBase = pred && conf >= 70 ? pred.cantidad_estimada : Math.round(p.demanda / 12);
+        const demandaMesSig = Math.round(demandaBase * factores.demandaMulti);
+        const stockSimulado = Math.round(p.stockActual * factores.stockMulti);
+        const deficit = Math.max(0, demandaMesSig - stockSimulado);
+        const compraSugerida = deficit > 0 ? Math.ceil(deficit * 1.15) : 0;
+        return { ...p, stockActual: stockSimulado, demandaMesSig, deficit, compraSugerida, pred, conf };
+      });
+    }
+    // Sin backend: fallback al cálculo local con usePredictions
+    return repuestos.map((p) => {
+      const pred = predictions[p.codigo];
+      const conf = pred ? pred.confianza * 100 : 0;
+      const demandaBase = pred && conf >= 70 ? pred.cantidad_estimada : Math.round(p.demanda / 12);
+      const demandaMesSig = Math.round(demandaBase * factores.demandaMulti);
+      const stockSimulado = Math.round(p.stockActual * factores.stockMulti);
+      const deficit = Math.max(0, demandaMesSig - stockSimulado);
+      const compraSugerida = deficit > 0 ? Math.ceil(deficit * 1.15) : 0;
+      return { ...p, stockActual: stockSimulado, demandaMesSig, deficit, compraSugerida, pred, conf };
+    });
+  }, [suggestionsData, repuestos, predictions, factores]);
 
   // Cálculos agregados
   const deficitTotal = ocData.reduce((s, d) => s + d.deficit, 0);

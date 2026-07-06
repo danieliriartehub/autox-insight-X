@@ -24,7 +24,8 @@ FEATURE_COLS = [
     "codigo_enc", "mes", "anio", "km_log", "km_por_mes",
     "mes_sin", "mes_cos", "precio_log",
     "sobre_stock", "marca_enc",
-    "lag_1", "lag_3", "rolling_mean_3",
+    "lag_1", "lag_3", "lag_6", "lag_12",
+    "rolling_mean_3", "rolling_mean_6", "rolling_std_6",
 ]
 
 TARGET = "demanda_total"
@@ -241,6 +242,14 @@ def train() -> dict:
         )
         log.warning("Modelo NO guardado en disco — no cumple umbrales de calidad.")
         return {}
+
+    # Cross-reference: codigo → marca_enc (para inferencia)
+    marca_por_codigo = df.groupby("codigo")["marca"].first().to_dict()
+    marca_enc_map = encoders.get("marca", {})
+    codigo_a_marca_enc = {}
+    for codigo, marca in marca_por_codigo.items():
+        codigo_a_marca_enc[codigo] = marca_enc_map.get(marca, -1)
+    encoders["codigo_a_marca"] = codigo_a_marca_enc
 
     bundle = {
         "model": model,
