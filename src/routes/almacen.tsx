@@ -4,7 +4,7 @@
 //  tabla de stock con predicciones IA, y panel de alertas.
 // ──────────────────────────────────────────────────────────
 
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { AlertTriangle, Search, ShoppingCart } from "lucide-react";
 
@@ -140,9 +140,11 @@ function AlmacenPage() {
             <Card>
               <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle className="text-base">Catálogo de inventario</CardTitle>
-                <Button size="sm">
-                  <ShoppingCart className="mr-2 h-4 w-4" /> Nueva orden de compra
-                </Button>
+                <Link to="/prediccion">
+                  <Button size="sm" className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold shadow-md shadow-primary/20 hover:shadow-primary/40 transition-all">
+                    <ShoppingCart className="mr-2 h-4 w-4" /> Nueva orden de compra
+                  </Button>
+                </Link>
               </CardHeader>
               <CardContent className="space-y-4">
                 {/* Filtros: búsqueda y categoría */}
