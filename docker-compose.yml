@@ -30,13 +30,14 @@ services:
   # ── Backend FastAPI ────────────────────────────────────
   backend:
     build:
-      context: .
+      context: ../autox-insight-backend
       dockerfile: Dockerfile.backend
     container_name: autox-backend
     ports:
       - "8000:8000"
     environment:
       - SUPABASE_URL=${SUPABASE_URL:-https://placeholder.supabase.co}
+      - SUPABASE_KEY=${SUPABASE_KEY:-placeholder}
       - SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY:-placeholder}
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health"]
@@ -45,7 +46,7 @@ services:
       start_period: 15s
       retries: 5
     volumes:
-      - ./ml:/app/ml
+      - ../autox-insight-backend/ml:/app/ml
     networks:
       - autox-network
     restart: unless-stopped

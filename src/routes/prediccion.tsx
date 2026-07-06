@@ -301,7 +301,7 @@ function PrediccionPage() {
     setOcError(null);
     try {
       const items = repuestosAComprar.map((r) => ({
-        codigo_repuesto: r.codigo,
+        codigo_repuesto: r.codigo.padEnd(15, " "),
         compra_sugerida: r.compraSugerida,
       }));
       const res = await generatePurchaseOrder(
@@ -779,143 +779,81 @@ function PrediccionPage() {
             </div>
 
             <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                disabled={repuestosAComprar.length === 0}
+                onClick={() => {
+                  setModalOCAbierto(true);
+                  iniciarSimulacion();
+                }}
+                className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold shadow-md shadow-primary/20 hover:shadow-primary/40 transition-all animate-in fade-in"
+              >
+                <ShoppingCart className="mr-2 h-4 w-4" /> Generar OC Automática
+              </Button>
+
               <Dialog open={modalOCAbierto} onOpenChange={resetearModal}>
-                <DialogTrigger asChild>
-                  <Button
-                    size="sm"
-                    disabled={repuestosAComprar.length === 0}
-                    className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold shadow-md shadow-primary/20 hover:shadow-primary/40 transition-all"
-                  >
-                    <ShoppingCart className="mr-2 h-4 w-4" /> Generar OC Automática
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-[550px]">
+                <DialogContent className="sm:max-w-[450px]">
                   <DialogHeader>
-                    <DialogTitle>Aprovisionamiento Automatizado SCM</DialogTitle>
-                    <DialogDescription>
-                      Revisión de órdenes sugeridas por la IA antes de enviarlas al ERP (Oracle).
+                    <DialogTitle className="text-center text-lg font-bold">Aprovisionamiento Automático SCM</DialogTitle>
+                    <DialogDescription className="text-center text-xs">
+                      Envío de sugerencias al sistema Arvak-Car
                     </DialogDescription>
                   </DialogHeader>
 
-                  <div className="py-4 space-y-4">
-                    <div className="rounded-md border bg-muted/30 p-3 max-h-[150px] overflow-y-auto">
-                      <table className="w-full text-xs">
-                        <thead>
-                          <tr className="text-left text-muted-foreground border-b pb-2">
-                            <th className="font-medium pb-1">Código</th>
-                            <th className="font-medium pb-1">Repuesto</th>
-                            <th className="font-medium pb-1 text-right">Cant.</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {repuestosAComprar.map((r) => (
-                            <tr key={r.codigo} className="border-b last:border-0">
-                              <td className="py-1 font-mono">{r.codigo}</td>
-                              <td className="py-1 max-w-[200px] truncate" title={r.repuesto}>
-                                {r.repuesto}
-                              </td>
-                              <td className="py-1 text-right font-bold text-primary">
-                                {r.compraSugerida}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
+                  <div className="py-6 flex flex-col items-center justify-center space-y-4">
+                    {estadoSimulacion === "enviando" && (
+                      <>
+                        <Loader2 className="h-12 w-12 text-primary animate-spin" />
+                        <p className="text-sm font-medium text-muted-foreground animate-pulse text-center">
+                          Enviando sugerencia de OC al sistema Arvak-Car...
+                        </p>
+                      </>
+                    )}
 
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Total de Items (SKUs):</span>
-                      <span className="font-bold">{repuestosAComprar.length}</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Volumen Total (Uds):</span>
-                      <span className="font-bold text-primary">
-                        {repuestosAComprar.reduce((s, r) => s + r.compraSugerida, 0)}
-                      </span>
-                    </div>
-
-                    {estadoSimulacion !== "idle" && (
-                      <div className="space-y-2 mt-4 p-4 border rounded-lg bg-primary/5 animate-in fade-in duration-500">
-                        <div className="flex items-center justify-between text-sm">
-                          {estadoSimulacion === "enviando" ? (
-                            <span className="flex items-center text-primary font-medium">
-                              <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Persistiendo OC en
-                              la base de datos...
-                            </span>
-                          ) : estadoSimulacion === "error" ? (
-                            <span className="flex items-center text-destructive font-bold">
-                              <ShieldAlert className="h-4 w-4 mr-2" /> No se pudo generar la OC
-                            </span>
-                          ) : (
-                            <span className="flex items-center text-success font-bold">
-                              <CheckCircle2 className="h-4 w-4 mr-2" /> Orden de Compra Generada
-                            </span>
-                          )}
+                    {estadoSimulacion === "completado" && (
+                      <>
+                        <CheckCircle2 className="h-16 w-16 text-emerald-500 animate-bounce" />
+                        <div className="text-center space-y-2">
+                          <p className="text-base font-bold text-foreground">
+                            Sugerencia de OC enviada al sistema Arvak-Car
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            Folio generado: <span className="font-mono font-semibold bg-muted px-1.5 py-0.5 rounded text-primary">{ocGeneradas[0]}</span>
+                          </p>
                         </div>
-                        {estadoSimulacion !== "error" && (
-                          <Progress
-                            value={estadoSimulacion === "enviando" ? 66 : 100}
-                            className="h-2 transition-all duration-1000 ease-in-out"
-                          />
-                        )}
-                        {estadoSimulacion === "completado" && (
-                          <div className="pt-2 text-sm text-muted-foreground">
-                            Folio persistido en{" "}
-                            <span className="font-mono">orden_compra_detalle</span> (origen: IA):
-                            <div className="mt-1 flex gap-2 flex-wrap">
-                              {ocGeneradas.map((oc) => (
-                                <Badge
-                                  key={oc}
-                                  variant="outline"
-                                  className="font-mono bg-background"
-                                >
-                                  {oc}
-                                </Badge>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                        {estadoSimulacion === "error" && ocError && (
-                          <p className="pt-1 text-xs text-destructive">{ocError}</p>
-                        )}
-                      </div>
+                      </>
+                    )}
+
+                    {estadoSimulacion === "error" && (
+                      <>
+                        <ShieldAlert className="h-16 w-16 text-destructive" />
+                        <div className="text-center space-y-2 w-full">
+                          <p className="text-base font-bold text-destructive">
+                            No se pudo enviar la sugerencia
+                          </p>
+                          <p className="text-xs text-destructive/90 px-4 max-h-[100px] overflow-y-auto font-mono text-left bg-destructive/5 border border-destructive/10 p-2 rounded">
+                            {ocError}
+                          </p>
+                        </div>
+                      </>
                     )}
                   </div>
 
-                  <DialogFooter className="flex items-center sm:justify-between">
-                    {estadoSimulacion === "idle" ? (
-                      <>
-                        <p className="text-xs text-muted-foreground w-full">
-                          La OC se registrará en{" "}
-                          <span className="font-mono">orden_compra_detalle</span> marcada como
-                          origen IA.
-                        </p>
-                        <Button onClick={iniciarSimulacion}>Confirmar y Generar OC</Button>
-                      </>
-                    ) : estadoSimulacion === "completado" ? (
-                      <div className="w-full flex justify-end gap-2">
-                        <Button variant="outline" onClick={() => resetearModal(false)}>
+                  <DialogFooter className="sm:justify-center w-full">
+                    {estadoSimulacion === "completado" && (
+                      <Button className="w-full sm:w-auto" onClick={() => resetearModal(false)}>
+                        Cerrar
+                      </Button>
+                    )}
+                    {estadoSimulacion === "error" && (
+                      <div className="flex gap-2 w-full justify-center">
+                        <Button variant="outline" className="w-full sm:w-auto" onClick={() => resetearModal(false)}>
                           Cerrar
                         </Button>
-                        <Link to="/almacen">
-                          <Button>
-                            <ArrowRight className="h-4 w-4 mr-2" /> Ir a Almacén
-                          </Button>
-                        </Link>
-                      </div>
-                    ) : estadoSimulacion === "error" ? (
-                      <div className="w-full flex justify-end gap-2">
-                        <Button variant="outline" onClick={() => resetearModal(false)}>
-                          Cerrar
-                        </Button>
-                        <Button onClick={iniciarSimulacion}>
+                        <Button className="w-full sm:w-auto" onClick={iniciarSimulacion}>
                           <RefreshCw className="h-4 w-4 mr-2" /> Reintentar
                         </Button>
                       </div>
-                    ) : (
-                      <Button disabled>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Procesando...
-                      </Button>
                     )}
                   </DialogFooter>
                 </DialogContent>
