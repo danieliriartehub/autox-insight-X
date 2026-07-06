@@ -296,10 +296,29 @@ jobs:
             sleep 2
           done
 
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+        env:
+          PNPM_CONFIG_MINIMUM_RELEASE_AGE: 0
+          PNPM_CONFIG_MIN_RELEASE_AGE: 0
+          NPM_CONFIG_MINIMUM_RELEASE_AGE: 0
+          NPM_CONFIG_MIN_RELEASE_AGE: 0
+
       - name: E2E Tests with Playwright
         run: |
-          npx playwright install --with-deps chromium
-          npx playwright test
+          pnpm exec playwright install --with-deps chromium
+          pnpm exec playwright test
 
       - name: Integration Test (API)
         run: |
