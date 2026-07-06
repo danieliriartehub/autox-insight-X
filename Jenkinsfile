@@ -41,24 +41,33 @@ pipeline {
         }
 
         // ═══════════════════════════════════════════════
-        // Stage 2: Quality — Lint, TypeCheck, Tests
+        // Stage 2: Install Dependencies
+        // ═══════════════════════════════════════════════
+        stage('Install Dependencies') {
+            steps {
+                sh 'npm install -g pnpm'
+                sh 'pnpm install --frozen-lockfile'
+            }
+        }
+
+        // ═══════════════════════════════════════════════
+        // Stage 3: Quality — Lint, TypeCheck, Tests
         // ═══════════════════════════════════════════════
         stage('Quality') {
             parallel {
                 stage('ESLint') {
                     steps {
-                        sh 'npm ci'
-                        sh 'npm run lint'
+                        sh 'pnpm run lint'
                     }
                 }
                 stage('TypeScript') {
                     steps {
-                        sh 'npx tsc --noEmit'
+                        sh 'pnpm tsc --noEmit'
                     }
                 }
                 stage('Unit Tests') {
                     steps {
-                        sh 'npm run test -- --coverage'
+                        sh 'pnpm run test -- --coverage'
                     }
                     post {
                         always {

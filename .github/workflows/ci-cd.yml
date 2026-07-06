@@ -41,14 +41,19 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
       - name: Setup Node
         uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: "npm"
+          cache: "pnpm"
 
       - name: Install dependencies
-        run: npm ci --ignore-scripts
+        run: pnpm install --frozen-lockfile --ignore-scripts
 
       - name: Prettier Check
         run: npx prettier --check "src/**/*.{ts,tsx,css}"
@@ -80,7 +85,9 @@ jobs:
         continue-on-error: true
 
       - name: Unit & Functional Tests
-        run: npm run test -- --coverage
+        run: pnpm run test -- --coverage
+        # ── RAZÓN: Vitest corre 20+ tests con cobertura.
+        #    El flag --coverage genera reporte para SonarQube ──
 
       - name: Install Playwright
         run: |
@@ -114,14 +121,20 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
       - name: Setup Node
         uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
+          cache: "pnpm"
 
-      - name: npm audit
-        run: npm audit --audit-level=high || true
-        # ── RAZÓN: npm audit revisa vulnerabilidades en
+      - name: pnpm audit
+        run: pnpm audit --audit-level=high || true
+        # ── RAZÓN: pnpm audit revisa vulnerabilidades en
         #    dependencias frontend. No falla el pipeline
         #    para no bloquear, pero se monitorea ──
 
