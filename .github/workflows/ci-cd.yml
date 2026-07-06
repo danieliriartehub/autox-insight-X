@@ -53,7 +53,7 @@ jobs:
           cache: "pnpm"
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile --ignore-scripts
+        run: pnpm install --frozen-lockfile --ignore-scripts --minimum-release-age=0
 
       - name: Prettier Check
         run: npx prettier --check "src/**/*.{ts,tsx,css}"
