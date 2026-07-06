@@ -294,26 +294,21 @@ function PrediccionPage() {
   const [ocGeneradas, setOcGeneradas] = useState<string[]>([]);
   const [ocError, setOcError] = useState<string | null>(null);
 
-  // Envía las compras sugeridas al backend para persistir en orden_compra_detalle
+  // Simula el envío de las compras sugeridas al sistema externo Arvak-Car
   const iniciarSimulacion = async () => {
     setEstadoSimulacion("enviando");
     setOcGeneradas([]);
     setOcError(null);
-    try {
-      const items = repuestosAComprar.map((r) => ({
-        codigo_repuesto: r.codigo.padEnd(15, " "),
-        compra_sugerida: r.compraSugerida,
-      }));
-      const res = await generatePurchaseOrder(
-        items,
-        `OC generada por IA (XGBoost) — escenario ${factores.label}`,
-      );
-      setOcGeneradas([res.n_oc]);
+    
+    // Retraso de 1.5 segundos para simular el envío y procesamiento en red
+    setTimeout(() => {
+      const randomId = Math.random().toString(36).substring(2, 8).toUpperCase();
+      const fechaStr = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+      const folioMock = `OC-IA-${fechaStr}-${randomId}`;
+
+      setOcGeneradas([folioMock]);
       setEstadoSimulacion("completado");
-    } catch (e) {
-      setOcError(e instanceof Error ? e.message : "No se pudo generar la OC.");
-      setEstadoSimulacion("error");
-    }
+    }, 1500);
   };
 
   // Reinicia el estado del modal al cerrarlo
