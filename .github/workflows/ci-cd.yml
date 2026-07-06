@@ -257,7 +257,9 @@ jobs:
         run: docker build -f Dockerfile.frontend -t autox-frontend:ci .
 
       - name: Build backend image
-        run: docker build -f backend/Dockerfile.backend -t autox-backend:ci ./backend
+        run: |
+          cd backend
+          docker build -f Dockerfile.backend -t autox-backend:ci .
 
       - name: Container Vulnerability Scan (Grype)
         uses: anchore/scan-action@v3
@@ -275,14 +277,15 @@ jobs:
           sarif_file: grype-results.sarif
         continue-on-error: true
 
-      - name: Start services with Docker Compose
+       - name: Start services with Docker Compose
         run: |
           docker compose -f docker-compose.yml up -d postgres-test
           docker run -d --name backend-ci \
             --network autox-network \
             -p 8000:8000 \
-            -e SUPABASE_URL=${{ secrets.SUPABASE_URL }} \
-            -e SUPABASE_SERVICE_KEY=${{ secrets.SUPABASE_SERVICE_KEY }} \
+            -e SUPABASE_URL=${{ secrets.VITE_SUPABASE_URL }} \
+            -e SUPABASE_KEY=${{ secrets.VITE_SUPABASE_SERVICE_KEY }} \
+            -e SUPABASE_SERVICE_KEY=${{ secrets.VITE_SUPABASE_SERVICE_KEY }} \
             autox-backend:ci
           docker run -d --name frontend-ci \
             --network autox-network \
@@ -294,19 +297,29 @@ jobs:
         run: |
           echo "Waiting for backend..."
           for i in $(seq 1 30); do
-            curl -sf http://localhost:8000/health && echo " Backend ready" && break
+            if curl -sf http://localhost:8000/health; then
+              echo " Backend ready"
+              exit 0
+            fi
             echo "Attempt $i/30..."
             sleep 2
           done
+          echo "Backend failed to start"
+          exit 1
 
       - name: Wait for frontend health
         run: |
           echo "Waiting for frontend..."
           for i in $(seq 1 15); do
-            curl -sf http://localhost:3000 && echo " Frontend ready" && break
+            if curl -sf http://localhost:3000; then
+              echo " Frontend ready"
+              exit 0
+            fi
             echo "Attempt $i/15..."
             sleep 2
           done
+          echo "Frontend failed to start"
+          exit 1
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4
