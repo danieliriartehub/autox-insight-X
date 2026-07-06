@@ -130,7 +130,6 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: "pnpm"
 
       - name: pnpm audit
         run: pnpm audit --audit-level=high || true
