@@ -47,7 +47,7 @@ jobs:
           version: 9
 
       - name: Setup Node
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: "pnpm"
@@ -132,7 +132,7 @@ jobs:
           version: 9
 
       - name: Setup Node
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
 
@@ -277,7 +277,7 @@ jobs:
           sarif_file: grype-results.sarif
         continue-on-error: true
 
-       - name: Start services with Docker Compose
+      - name: Start services with Docker Compose
         run: |
           docker compose -f docker-compose.yml up -d postgres-test
           docker run -d --name backend-ci \
@@ -327,7 +327,7 @@ jobs:
           version: 9
 
       - name: Setup Node
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: "pnpm"
@@ -364,7 +364,7 @@ jobs:
           fail_action: false
 
       - name: Upload ZAP Report
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v4
         if: always()
         with:
           name: zap-report

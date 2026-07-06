@@ -787,7 +787,7 @@ function PrediccionPage() {
               </Button>
 
               <Dialog open={modalOCAbierto} onOpenChange={resetearModal}>
-                <DialogContent className="sm:max-w-[450px] border-t-4 border-t-primary shadow-2xl bg-gradient-to-b from-background to-muted/20 rounded-2xl overflow-hidden">
+                <DialogContent className="sm:max-w-[450px] border-t-4 border-t-primary shadow-2xl bg-white rounded-2xl overflow-hidden">
                   <DialogHeader className="space-y-1">
                     <DialogTitle className="text-center text-xl font-bold flex items-center justify-center gap-2">
                       <Brain className="h-5 w-5 text-primary animate-pulse" />
