@@ -147,10 +147,16 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
+      - name: Checkout Backend for Audit
+        uses: actions/checkout@v4
+        with:
+          repository: jacquiets/autox-insight-backend
+          path: backend
+
       - name: Safety check (backend)
         run: |
           pip install safety
-          safety check -r api/requirements.txt --full-report || true
+          safety check -r backend/requirements.txt --full-report || true
         # ── RAZÓN: Safety revisa vulnerabilidades en
         #    dependencias Python (FastAPI, XGBoost, etc.) ──
 
@@ -183,7 +189,7 @@ jobs:
       - name: Dockerfile Lint (Hadolint) — Backend
         uses: hadolint/hadolint-action@v3.3.0
         with:
-          dockerfile: Dockerfile.backend
+          dockerfile: backend/Dockerfile.backend
           config: .hadolint.yaml
           format: sarif
           output-file: hadolint-results-backend.sarif
@@ -235,8 +241,14 @@ jobs:
     needs: [quality, security-audit]
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout Frontend
         uses: actions/checkout@v4
+
+      - name: Checkout Backend for Integration Tests
+        uses: actions/checkout@v4
+        with:
+          repository: jacquiets/autox-insight-backend
+          path: backend
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
@@ -245,7 +257,9 @@ jobs:
         run: docker build -f Dockerfile.frontend -t autox-frontend:ci .
 
       - name: Build backend image
-        run: docker build -f Dockerfile.backend -t autox-backend:ci .
+        run: |
+          cd backend
+          docker build -f Dockerfile.backend -t autox-backend:ci .
 
       - name: Container Vulnerability Scan (Grype)
         uses: anchore/scan-action@v3
@@ -263,14 +277,15 @@ jobs:
           sarif_file: grype-results.sarif
         continue-on-error: true
 
-      - name: Start services with Docker Compose
+       - name: Start services with Docker Compose
         run: |
           docker compose -f docker-compose.yml up -d postgres-test
           docker run -d --name backend-ci \
             --network autox-network \
             -p 8000:8000 \
-            -e SUPABASE_URL=${{ secrets.SUPABASE_URL }} \
-            -e SUPABASE_SERVICE_KEY=${{ secrets.SUPABASE_SERVICE_KEY }} \
+            -e SUPABASE_URL=${{ secrets.VITE_SUPABASE_URL }} \
+            -e SUPABASE_KEY=${{ secrets.VITE_SUPABASE_SERVICE_KEY }} \
+            -e SUPABASE_SERVICE_KEY=${{ secrets.VITE_SUPABASE_SERVICE_KEY }} \
             autox-backend:ci
           docker run -d --name frontend-ci \
             --network autox-network \
@@ -282,19 +297,29 @@ jobs:
         run: |
           echo "Waiting for backend..."
           for i in $(seq 1 30); do
-            curl -sf http://localhost:8000/health && echo " Backend ready" && break
+            if curl -sf http://localhost:8000/health; then
+              echo " Backend ready"
+              exit 0
+            fi
             echo "Attempt $i/30..."
             sleep 2
           done
+          echo "Backend failed to start"
+          exit 1
 
       - name: Wait for frontend health
         run: |
           echo "Waiting for frontend..."
           for i in $(seq 1 15); do
-            curl -sf http://localhost:3000 && echo " Frontend ready" && break
+            if curl -sf http://localhost:3000; then
+              echo " Frontend ready"
+              exit 0
+            fi
             echo "Attempt $i/15..."
             sleep 2
           done
+          echo "Frontend failed to start"
+          exit 1
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4
@@ -382,43 +407,12 @@ jobs:
           # Sube el código fuente a Vercel delegando el build e inyección de variables de entorno de forma nativa
           vercel deploy --prod --yes --token=${{ secrets.VERCEL_FRONTEND_TOKEN }}
 
-      - name: Setup Python for Model Training
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-
-      - name: Train & Deploy Model v4.0
-        env:
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
-          VITE_SUPABASE_SERVICE_KEY: ${{ secrets.VITE_SUPABASE_SERVICE_KEY }}
-        run: |
-          pip install -r api/requirements.txt python-dotenv
-          python -m ml.etl.etl_from_supabase
-          python -m ml.create_features
-          python -m ml.train
-          python -m ml.deploy_model
-
-      - name: Deploy Backend → Railway
-        env:
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-        run: |
-          npm install -g @railway/cli
-          railway link ${{ secrets.RAILWAY_PROJECT_ID }}
-          railway up --service backend
-
       - name: Post-Deploy Health Check
         run: |
           echo "Waiting for production backend..."
           sleep 20
           curl --retry 10 --retry-delay 10 \
             https://autox-insight-backend-production.up.railway.app/health
-
-      - name: Verify Model Loaded
-        run: |
-          STATUS=$(curl -sf https://autox-insight-backend-production.up.railway.app/api/v1/ml/status)
-          echo "ML Status: $STATUS"
-          echo "$STATUS" | grep -q "v4.0" && echo "Model v4.0 loaded successfully" || echo "Warning: version check failed"
 
   # ════════════════════════════════════════════════════════
   #  JOB 5: Quality Gate Summary (reporte final)
