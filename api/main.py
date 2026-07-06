@@ -8,6 +8,7 @@ from datetime import datetime
 from typing import Optional
 
 import httpx
+import time
 import numpy as np
 import pandas as pd
 from fastapi import FastAPI, HTTPException, Query
@@ -186,10 +187,8 @@ def _build_feature_vector(req: PredictRequest, bundle: dict) -> np.ndarray:
     repuesto_map = encoder.get("codigo", {})
 
     codigo_enc = repuesto_map.get(req.codigo_repuesto, -1)
-    marca_enc_raw = encoder.get("marca", {})
-    categoria_enc_raw = encoder.get("categoria", {})
-    marca_enc = max(marca_enc_raw.values()) + 1 if not marca_enc_raw else 0
-    categoria_enc = max(categoria_enc_raw.values()) + 1 if not categoria_enc_raw else 0
+    codigo_a_marca = encoder.get("codigo_a_marca", {})
+    marca_enc = codigo_a_marca.get(req.codigo_repuesto, -1)
 
     anio = req.anio if req.anio is not None else bundle.get("_anio_default", datetime.now().year)
     km = req.km if req.km is not None else 0
@@ -198,7 +197,6 @@ def _build_feature_vector(req: PredictRequest, bundle: dict) -> np.ndarray:
     mes_sin = math.sin(2 * math.pi * req.mes / 12)
     mes_cos = math.cos(2 * math.pi * req.mes / 12)
     precio_log = 0.0
-    garantia_meses = 0
     sobre_stock = 0
     lag_1 = 0.0
     lag_3 = 0.0
@@ -213,10 +211,8 @@ def _build_feature_vector(req: PredictRequest, bundle: dict) -> np.ndarray:
         "mes_sin": mes_sin,
         "mes_cos": mes_cos,
         "precio_log": precio_log,
-        "garantia_meses": garantia_meses,
         "sobre_stock": sobre_stock,
         "marca_enc": marca_enc,
-        "categoria_enc": categoria_enc,
         "lag_1": lag_1,
         "lag_3": lag_3,
         "rolling_mean_3": rolling_mean_3,
@@ -314,9 +310,20 @@ def api_health():
     return {"status": "ok", "modelo_cargado": _model_loaded, "version": model_bundle.get("version", "4.0")}
 
 
+@app.get("/api/v1/ml/health")
+def ml_health():
+    return {"status": "ok", "modelo_cargado": _model_loaded, "version": model_bundle.get("version", "4.0")}
+
+
 @app.post("/api/v1/ml/predict", response_model=PredictResponse)
 def predict(req: PredictRequest):
-    return _predict(model_bundle, req)
+    t0 = time.perf_counter()
+    result = _predict(model_bundle, req)
+    elapsed = (time.perf_counter() - t0) * 1000
+    log.info(f"Inferencia: {elapsed:.1f}ms para {req.codigo_repuesto}")
+    if elapsed > 1500:
+        log.warning(f"SLA excedido: {elapsed:.1f}ms > 1500ms para {req.codigo_repuesto}")
+    return result
 
 
 @app.get("/api/v1/ml/status", response_model=MLStatusResponse)
@@ -381,6 +388,13 @@ def retrain(req: RetrainRequest):
         model_bundle.update(bundle)
         _model_loaded = True
 
+        try:
+            from ml.deploy_model import upload_model
+            upload_model()
+            log.info("Modelo subido a Supabase Storage post-retrain")
+        except Exception as e:
+            log.warning(f"No se pudo subir modelo a Storage: {e}")
+
         partes_gate = []
         if not gate_wmape:
             partes_gate.append(f"wMAPE={wmape:.1f}% supera umbral {WMPAE_THRESHOLD}%")
@@ -435,21 +449,31 @@ def purchase_suggestions(
     codigos = list(repuesto_map.keys())[:limite]
 
     # ── Consulta batch a Supabase: stock vivo + descripción/marca ──────────────
+    # Dos queries separadas para evitar dependencia de FK en Supabase
     sb_url = os.getenv("VITE_SUPABASE_URL", "")
     sb_key = os.getenv("VITE_SUPABASE_ANON_KEY", "")
     stock_index: dict[str, dict] = {}
+    repuesto_index: dict[str, dict] = {}
 
     if sb_url and sb_key:
         try:
             sb = create_client(sb_url, sb_key)
-            result = (
+            stock_result = (
                 sb.table("stock")
-                .select("c_repuesto, stock, stock_minimo, stock_maximo, repuesto(descripcion, marca)")
+                .select("c_repuesto, stock, stock_minimo, stock_maximo")
                 .in_("c_repuesto", codigos)
                 .execute()
             )
-            for row in (result.data or []):
+            for row in (stock_result.data or []):
                 stock_index[row["c_repuesto"]] = row
+            repuesto_result = (
+                sb.table("repuesto")
+                .select("c_repuesto, descripcion, marca")
+                .in_("c_repuesto", codigos)
+                .execute()
+            )
+            for row in (repuesto_result.data or []):
+                repuesto_index[row["c_repuesto"]] = row
             log.info(f"Stock live cargado para {len(stock_index)}/{len(codigos)} SKUs")
         except Exception as e:
             log.warning(f"No se pudo consultar stock live: {e}. Usando fallback a ceros.")
@@ -465,9 +489,9 @@ def purchase_suggestions(
         stock_actual = info.get("stock", 0) or 0
         stock_minimo = info.get("stock_minimo", 0) or 0
         stock_maximo = info.get("stock_maximo", 0) or 0
-        repuesto_rel = info.get("repuesto") or {}
-        descripcion = repuesto_rel.get("descripcion")
-        marca = repuesto_rel.get("marca")
+        repuesto_info = repuesto_index.get(codigo, {})
+        descripcion = repuesto_info.get("descripcion")
+        marca = repuesto_info.get("marca")
 
         deficit = max(0.0, pred.cantidad_estimada - stock_actual)
         compra_sugerida = math.ceil(deficit * 1.15) if deficit > 0 else 0
@@ -512,6 +536,7 @@ def generate_oc(req: GenerateOCRequest):
             raise ValueError("Supabase credentials not configured")
         sb = create_client(sb_url, sb_key)
         n_oc = f"OC-IA-{datetime.now().strftime('%Y%m%d%H%M%S')}"
+        now = datetime.now().isoformat()
         detalle = []
         for item in req.items:
             detalle.append({
@@ -519,13 +544,18 @@ def generate_oc(req: GenerateOCRequest):
                 "codigo_repuesto": item.get("codigo_repuesto"),
                 "cantidad": item.get("compra_sugerida", 0),
                 "origen": "IA",
-                "created_at": datetime.now().isoformat(),
+                "observacion": req.observacion,
+                "created_at": now,
             })
+        result = sb.table("orden_compra_detalle").insert(detalle).execute()
+        inserted = len(result.data) if result.data else 0
+        log.info(f"OC {n_oc} persistida en orden_compra_detalle: {inserted} filas")
         return GenerateOCResponse(
             n_oc=n_oc,
-            items_insertados=len(detalle),
+            items_insertados=inserted,
             detalle=detalle,
-            mensaje=f"OC {n_oc} generada con {len(detalle)} ítems (origen: IA)",
+            mensaje=f"OC {n_oc} generada con {inserted} ítems persistidos en orden_compra_detalle (origen: IA)",
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error generando OC: {e}")
+        log.error(f"Error insertando OC en Supabase: {e}")
+        raise HTTPException(status_code=500, detail=f"Error de base de datos: {e}")

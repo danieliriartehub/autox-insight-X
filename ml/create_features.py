@@ -95,7 +95,7 @@ def run_feature_engineering() -> tuple[pd.DataFrame, dict]:
 
     df, encoders = encode_categorical(df)
 
-    df.dropna(subset=[c for c in df.columns if c.startswith("lag_")], inplace=True)
+    df.fillna({c: 0 for c in df.columns if c.startswith("lag_") or c.startswith("rolling_std_")}, inplace=True)
     df.reset_index(drop=True, inplace=True)
 
     log.info(f"Filas después de feature engineering: {len(df)}")
