@@ -41,24 +41,33 @@ pipeline {
         }
 
         // ═══════════════════════════════════════════════
-        // Stage 2: Quality — Lint, TypeCheck, Tests
+        // Stage 2: Install Dependencies
+        // ═══════════════════════════════════════════════
+        stage('Install Dependencies') {
+            steps {
+                sh 'npm install -g pnpm'
+                sh 'PNPM_CONFIG_MINIMUM_RELEASE_AGE=0 PNPM_CONFIG_MIN_RELEASE_AGE=0 NPM_CONFIG_MINIMUM_RELEASE_AGE=0 NPM_CONFIG_MIN_RELEASE_AGE=0 pnpm install --frozen-lockfile'
+            }
+        }
+
+        // ═══════════════════════════════════════════════
+        // Stage 3: Quality — Lint, TypeCheck, Tests
         // ═══════════════════════════════════════════════
         stage('Quality') {
             parallel {
                 stage('ESLint') {
                     steps {
-                        sh 'npm ci'
-                        sh 'npm run lint'
+                        sh 'pnpm run lint'
                     }
                 }
                 stage('TypeScript') {
                     steps {
-                        sh 'npx tsc --noEmit'
+                        sh 'pnpm tsc --noEmit'
                     }
                 }
                 stage('Unit Tests') {
                     steps {
-                        sh 'npm run test -- --coverage'
+                        sh 'pnpm run test -- --coverage'
                     }
                     post {
                         always {
@@ -239,9 +248,10 @@ pipeline {
                 // ── Vercel ──
                 sh '''
                     npm install -g vercel
+                    # Despliegue nativo delegando el build a Vercel (sin local build ni --prebuilt)
+                    # Usamos vercel pull para linkear localmente con la cuenta/proyecto usando el token, y luego deploy remoto
                     vercel pull --yes --token=${VERCEL_TOKEN} --environment=production
-                    vercel build --prod --token=${VERCEL_TOKEN}
-                    vercel deploy --prebuilt --prod --token=${VERCEL_TOKEN}
+                    vercel deploy --prod --yes --token=${VERCEL_TOKEN}
                 '''
                 // ── Railway ──
                 sh '''

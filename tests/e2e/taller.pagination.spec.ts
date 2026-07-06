@@ -6,8 +6,8 @@ test.describe("Taller Page — /taller", () => {
   });
 
   test("renders page title and filters", async ({ page }) => {
-    await expect(page.locator("text=Taller")).toBeVisible();
-    await expect(page.locator("text=Órdenes de Trabajo")).toBeVisible();
+    await expect(page.locator("text=Taller").first()).toBeVisible();
+    await expect(page.locator("text=Órdenes de Trabajo").first()).toBeVisible();
 
     const searchInput = page.locator("input[placeholder='Buscar OT, cliente, vehículo…']");
     await expect(searchInput).toBeVisible();
@@ -23,9 +23,9 @@ test.describe("Taller Page — /taller", () => {
   });
 
   test("pagination controls are rendered", async ({ page }) => {
-    await expect(page.locator("text=Página 1 de 1")).toBeVisible();
-    const prevBtn = page.locator("button:has(svg.lucide-chevron-left)");
-    const nextBtn = page.locator("button:has(svg.lucide-chevron-right)");
+    await expect(page.locator("text=Página 1 de 1").first()).toBeVisible();
+    const prevBtn = page.locator("button:has(svg.lucide-chevron-left)").first();
+    const nextBtn = page.locator("button:has(svg.lucide-chevron-right)").first();
 
     await expect(prevBtn).toBeDisabled();
     await expect(nextBtn).toBeDisabled();

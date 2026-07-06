@@ -6,7 +6,7 @@ test.describe("Almacen Page — /almacen", () => {
   });
 
   test("renders page title and KPI cards", async ({ page }) => {
-    await expect(page.locator("text=Almacén")).toBeVisible();
+    await expect(page.locator("text=Almacén").first()).toBeVisible();
     await expect(page.locator("text=Inventario, movimientos y alertas de stock")).toBeVisible();
 
     await expect(page.locator("text=SKUs activos")).toBeVisible();
@@ -34,8 +34,8 @@ test.describe("Almacen Page — /almacen", () => {
     await expect(page.locator("text=Catálogo de inventario")).toBeVisible();
     await expect(page.locator("text=Código")).toBeVisible();
     await expect(page.locator("text=Repuesto")).toBeVisible();
-    await expect(page.locator("text=Categoría")).toBeVisible();
-    await expect(page.locator("text=Stock")).toBeVisible();
+    await expect(page.locator("text=Categoría").first()).toBeVisible();
+    await expect(page.locator("text=Stock").first()).toBeVisible();
     await expect(page.locator("text=Mín")).toBeVisible();
     await expect(page.locator("text=Máx")).toBeVisible();
     await expect(page.locator("text=Estado")).toBeVisible();
@@ -51,7 +51,7 @@ test.describe("Almacen Page — /almacen", () => {
     const catTrigger = page.locator("button:has(span:has-text('Todas las categorías'))");
     await expect(catTrigger).toBeVisible();
     await catTrigger.click();
-    await expect(page.locator("text=Todas las categorías")).toBeVisible();
+    await expect(page.locator("text=Todas las categorías").first()).toBeVisible();
   });
 
   test("new purchase order button is present", async ({ page }) => {
