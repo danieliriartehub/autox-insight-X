@@ -66,12 +66,7 @@ function ResetPasswordPage() {
   const navigate = useNavigate();
   const { token_hash, type, error: urlError } = useSearch({ from: "/reset-password" });
 
-  const [tokenState, setTokenState] = useState<"verifying" | "valid" | "invalid">(() => {
-    if (urlError || !token_hash || !type) {
-      return "invalid";
-    }
-    return "verifying";
-  });
+  const [tokenState, setTokenState] = useState<"verifying" | "valid" | "invalid">("verifying");
   const [accessToken, setAccessToken] = useState<string>("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
@@ -86,29 +81,82 @@ function ResetPasswordPage() {
     mode: "onChange",
   });
 
-  // ── Verificar el token al montar ────────────────────────
+  // ── Verificar el token al montar (Soporta Hash, Sesión y OTP) ──────────
   useEffect(() => {
-    if (urlError || !token_hash || !type) {
-      return;
-    }
-
     let active = true;
 
-    // Intercambiar token_hash por sesion valida
-    supabase.auth
-      .verifyOtp({ token_hash, type: type as "recovery" })
-      .then(({ data, error }) => {
-        if (!active) return;
-        if (error || !data.session) {
-          setTokenState("invalid");
-        } else {
-          setAccessToken(data.session.access_token);
+    const checkVerification = async () => {
+      if (urlError) {
+        if (active) setTokenState("invalid");
+        return;
+      }
+
+      // 1. Verificar si ya tenemos una sesión activa (ej. PKCE flow auto-handled)
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (session) {
+        if (active) {
+          setAccessToken(session.access_token);
           setTokenState("valid");
         }
-      })
-      .catch(() => {
-        if (active) setTokenState("invalid");
-      });
+        return;
+      }
+
+      // 2. Verificar parámetros en el Hash Fragment (#access_token=...&type=recovery)
+      const hash = window.location.hash;
+      if (hash) {
+        const params = new URLSearchParams(hash.substring(1)); // Quitar el '#'
+        const errorParam = params.get("error");
+        const accessTokenParam = params.get("access_token");
+        const typeParam = params.get("type");
+
+        if (errorParam) {
+          if (active) setTokenState("invalid");
+          return;
+        }
+
+        if (accessTokenParam && (typeParam === "recovery" || hash.includes("recovery"))) {
+          if (active) {
+            setAccessToken(accessTokenParam);
+            setTokenState("valid");
+            // Sincronizar la sesión en el SDK cliente
+            await supabase.auth.setSession({
+              access_token: accessTokenParam,
+              refresh_token: params.get("refresh_token") || "",
+            });
+          }
+          return;
+        }
+      }
+
+      // 3. Fallback: Verificar vía OTP (si la URL contiene ?token_hash=...)
+      if (token_hash && type) {
+        try {
+          const { data, error } = await supabase.auth.verifyOtp({
+            token_hash,
+            type: type as "recovery",
+          });
+
+          if (!active) return;
+
+          if (error || !data.session) {
+            setTokenState("invalid");
+          } else {
+            setAccessToken(data.session.access_token);
+            setTokenState("valid");
+          }
+        } catch {
+          if (active) setTokenState("invalid");
+        }
+        return;
+      }
+
+      // Si no se cumple ninguna condición, el token es inválido
+      if (active) setTokenState("invalid");
+    };
+
+    checkVerification();
 
     return () => {
       active = false;
