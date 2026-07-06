@@ -257,7 +257,9 @@ jobs:
         run: docker build -f Dockerfile.frontend -t autox-frontend:ci .
 
       - name: Build backend image
-        run: docker build -f backend/Dockerfile.backend -t autox-backend:ci ./backend
+        run: |
+          cd backend
+          docker build -f Dockerfile.backend -t autox-backend:ci .
 
       - name: Container Vulnerability Scan (Grype)
         uses: anchore/scan-action@v3
