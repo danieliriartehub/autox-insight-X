@@ -277,16 +277,11 @@ jobs:
           sarif_file: results.sarif
         continue-on-error: true
 
-      - name: Create Docker network
-        # ── RAZÓN: docker run --network requiere que la red exista de antemano.
-        #    docker compose crea la red solo cuando arranca servicios que la usan.
-        #    Creamos la red manualmente para garantizar que esté disponible. ──
-        run: docker network create autox-network || true
-
       - name: Start postgres-test
-        # ── RAZÓN: El backend necesita una DB accesible en la misma red.
-        #    Arrancamos solo postgres-test via compose para no necesitar las
-        #    rutas locales del backend (../autox-insight-backend/ml). ──
+        # ── RAZÓN: docker compose crea la red autox-network con los labels correctos
+        #    al arrancar postgres-test. Después, docker run puede conectarse a esa red
+        #    sin conflicto. NO crear la red manualmente — compose la rechaza si los
+        #    labels no coinciden (com.docker.compose.network mismatch). ──
         run: |
           docker compose -f docker-compose.yml up -d postgres-test
           echo "Waiting for postgres to be ready..."
