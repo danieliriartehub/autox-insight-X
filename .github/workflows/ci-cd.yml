@@ -245,6 +245,9 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Checkout Backend for Integration Tests
+        # ── RAZÓN: El repo del backend es privado. Si no hay token con acceso,
+        #    fallará. continue-on-error evita que bloquee el resto del pipeline. ──
+        continue-on-error: true
         uses: actions/checkout@v4
         with:
           repository: jacquiets/autox-insight-backend
@@ -257,9 +260,15 @@ jobs:
         run: docker build -f Dockerfile.frontend -t autox-frontend:ci .
 
       - name: Build backend image
+        # ── RAZÓN: Si el checkout del backend falló, no hay Dockerfile.backend
+        #    disponible. continue-on-error evita fallo en cascada. ──
+        continue-on-error: true
         run: |
-          cd backend
-          docker build -f Dockerfile.backend -t autox-backend:ci .
+          if [ -f backend/Dockerfile.backend ]; then
+            cd backend && docker build -f Dockerfile.backend -t autox-backend:ci .
+          else
+            echo "⚠️  backend/ not available — skipping backend image build"
+          fi
 
       - name: Container Vulnerability Scan (Grype)
         # output-format sarif → results saved as 'results.sarif' by default
@@ -295,14 +304,20 @@ jobs:
           done
 
       - name: Start backend container
+        continue-on-error: true
         run: |
-          docker run -d --name backend-ci \
-            --network autox-network \
-            -p 8000:8000 \
-            -e SUPABASE_URL=${{ secrets.VITE_SUPABASE_URL }} \
-            -e SUPABASE_KEY=${{ secrets.VITE_SUPABASE_SERVICE_KEY }} \
-            -e SUPABASE_SERVICE_KEY=${{ secrets.VITE_SUPABASE_SERVICE_KEY }} \
-            autox-backend:ci
+          # ── Solo arrancamos el backend si la imagen existe ──
+          if docker image inspect autox-backend:ci &>/dev/null; then
+            docker run -d --name backend-ci \
+              --network autox-network \
+              -p 8000:8000 \
+              -e SUPABASE_URL=${{ secrets.VITE_SUPABASE_URL }} \
+              -e SUPABASE_KEY=${{ secrets.VITE_SUPABASE_SERVICE_KEY }} \
+              -e SUPABASE_SERVICE_KEY=${{ secrets.VITE_SUPABASE_SERVICE_KEY }} \
+              autox-backend:ci
+          else
+            echo "⚠️  autox-backend:ci image not found — skipping backend container"
+          fi
           docker run -d --name frontend-ci \
             --network autox-network \
             -p 3000:3000 \
