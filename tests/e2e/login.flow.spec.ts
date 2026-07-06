@@ -6,7 +6,7 @@ test.describe("Login Page — /", () => {
   });
 
   test("renders branding and form", async ({ page }) => {
-    await expect(page.locator("text=bpA Motors")).toBeVisible();
+    await expect(page.locator("text=bpA Motors").first()).toBeVisible();
     await expect(page.locator("text=SCM INTELLIGENCE")).toBeVisible();
     await expect(page.locator("h2").first()).toContainText("Iniciar sesión");
 

@@ -7,7 +7,7 @@ test.describe("Taller Page — /taller", () => {
 
   test("renders page title and filters", async ({ page }) => {
     await expect(page.locator("text=Taller").first()).toBeVisible();
-    await expect(page.locator("text=Órdenes de Trabajo")).toBeVisible();
+    await expect(page.locator("text=Órdenes de Trabajo").first()).toBeVisible();
 
     const searchInput = page.locator("input[placeholder='Buscar OT, cliente, vehículo…']");
     await expect(searchInput).toBeVisible();
