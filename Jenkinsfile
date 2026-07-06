@@ -239,9 +239,10 @@ pipeline {
                 // ── Vercel ──
                 sh '''
                     npm install -g vercel
+                    # Despliegue nativo delegando el build a Vercel (sin local build ni --prebuilt)
+                    # Usamos vercel pull para linkear localmente con la cuenta/proyecto usando el token, y luego deploy remoto
                     vercel pull --yes --token=${VERCEL_TOKEN} --environment=production
-                    vercel build --prod --token=${VERCEL_TOKEN}
-                    vercel deploy --prebuilt --prod --token=${VERCEL_TOKEN}
+                    vercel deploy --prod --yes --token=${VERCEL_TOKEN}
                 '''
                 // ── Railway ──
                 sh '''
