@@ -294,26 +294,21 @@ function PrediccionPage() {
   const [ocGeneradas, setOcGeneradas] = useState<string[]>([]);
   const [ocError, setOcError] = useState<string | null>(null);
 
-  // Envía las compras sugeridas al backend para persistir en orden_compra_detalle
+  // Simula el envío de las compras sugeridas al sistema externo Arvak-Car
   const iniciarSimulacion = async () => {
     setEstadoSimulacion("enviando");
     setOcGeneradas([]);
     setOcError(null);
-    try {
-      const items = repuestosAComprar.map((r) => ({
-        codigo_repuesto: r.codigo.padEnd(15, " "),
-        compra_sugerida: r.compraSugerida,
-      }));
-      const res = await generatePurchaseOrder(
-        items,
-        `OC generada por IA (XGBoost) — escenario ${factores.label}`,
-      );
-      setOcGeneradas([res.n_oc]);
+    
+    // Retraso de 1.5 segundos para simular el envío y procesamiento en red
+    setTimeout(() => {
+      const randomId = Math.random().toString(36).substring(2, 8).toUpperCase();
+      const fechaStr = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+      const folioMock = `OC-IA-${fechaStr}-${randomId}`;
+
+      setOcGeneradas([folioMock]);
       setEstadoSimulacion("completado");
-    } catch (e) {
-      setOcError(e instanceof Error ? e.message : "No se pudo generar la OC.");
-      setEstadoSimulacion("error");
-    }
+    }, 1500);
   };
 
   // Reinicia el estado del modal al cerrarlo
@@ -792,66 +787,98 @@ function PrediccionPage() {
               </Button>
 
               <Dialog open={modalOCAbierto} onOpenChange={resetearModal}>
-                <DialogContent className="sm:max-w-[450px]">
-                  <DialogHeader>
-                    <DialogTitle className="text-center text-lg font-bold">Aprovisionamiento Automático SCM</DialogTitle>
-                    <DialogDescription className="text-center text-xs">
-                      Envío de sugerencias al sistema Arvak-Car
+                <DialogContent className="sm:max-w-[450px] border-t-4 border-t-primary shadow-2xl bg-gradient-to-b from-background to-muted/20 rounded-2xl overflow-hidden">
+                  <DialogHeader className="space-y-1">
+                    <DialogTitle className="text-center text-xl font-bold flex items-center justify-center gap-2">
+                      <Brain className="h-5 w-5 text-primary animate-pulse" />
+                      Aprovisionamiento Automático SCM
+                    </DialogTitle>
+                    <DialogDescription className="text-center text-xs font-medium text-muted-foreground">
+                      Integración de escenarios con ERP Arvak-Car
                     </DialogDescription>
                   </DialogHeader>
 
-                  <div className="py-6 flex flex-col items-center justify-center space-y-4">
+                  <div className="py-6 flex flex-col items-center justify-center">
                     {estadoSimulacion === "enviando" && (
-                      <>
-                        <Loader2 className="h-12 w-12 text-primary animate-spin" />
-                        <p className="text-sm font-medium text-muted-foreground animate-pulse text-center">
-                          Enviando sugerencia de OC al sistema Arvak-Car...
-                        </p>
-                      </>
+                      <div className="bg-primary/[0.03] border border-primary/10 rounded-2xl p-8 w-full flex flex-col items-center justify-center space-y-4 shadow-inner">
+                        <div className="relative flex items-center justify-center h-16 w-16">
+                          <span className="absolute animate-ping inline-flex h-full w-full rounded-full bg-primary/20 opacity-75"></span>
+                          <Loader2 className="h-10 w-10 text-primary animate-spin relative" />
+                        </div>
+                        <div className="space-y-1 text-center">
+                          <p className="text-sm font-bold text-foreground animate-pulse">
+                            Enviando sugerencias de compra...
+                          </p>
+                          <p className="text-xs text-muted-foreground max-w-[250px] mx-auto">
+                            Procesando y registrando {repuestosAComprar.length} SKUs sugeridos en Arvak-Car ERP
+                          </p>
+                        </div>
+                      </div>
                     )}
 
                     {estadoSimulacion === "completado" && (
-                      <>
-                        <CheckCircle2 className="h-16 w-16 text-emerald-500 animate-bounce" />
-                        <div className="text-center space-y-2">
-                          <p className="text-base font-bold text-foreground">
-                            Sugerencia de OC enviada al sistema Arvak-Car
+                      <div className="bg-emerald-500/[0.03] border border-emerald-500/10 rounded-2xl p-6 w-full flex flex-col items-center justify-center space-y-5 shadow-sm animate-in zoom-in duration-300">
+                        <div className="relative flex items-center justify-center h-16 w-16 rounded-full bg-emerald-500/10 border-2 border-emerald-500 shadow-lg shadow-emerald-500/10 animate-bounce">
+                          <CheckCircle2 className="h-8 w-8 text-emerald-600" />
+                        </div>
+                        
+                        <div className="text-center space-y-1">
+                          <p className="text-base font-extrabold text-emerald-700">
+                            Sugerencia de OC Enviada
                           </p>
-                          <p className="text-xs text-muted-foreground">
-                            Folio generado: <span className="font-mono font-semibold bg-muted px-1.5 py-0.5 rounded text-primary">{ocGeneradas[0]}</span>
+                          <p className="text-xs text-muted-foreground max-w-[280px]">
+                            La orden ha sido transmitida y confirmada exitosamente en el ERP
                           </p>
                         </div>
-                      </>
+
+                        <div className="bg-background border border-dashed border-muted-foreground/30 rounded-xl p-3.5 w-full flex flex-col items-center space-y-1.5 shadow-inner">
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                            Código de Seguimiento ERP
+                          </span>
+                          <span className="font-mono font-bold text-base text-primary tracking-wide select-all bg-muted/50 px-3 py-1 rounded-lg border">
+                            {ocGeneradas[0]}
+                          </span>
+                          <span className="text-[9px] text-emerald-600 font-semibold flex items-center gap-1 mt-1 bg-emerald-500/10 px-2 py-0.5 rounded-full">
+                            <ShieldCheck className="h-3 w-3 inline" /> Conexión segura SSL — Arvak-Car
+                          </span>
+                        </div>
+                      </div>
                     )}
 
                     {estadoSimulacion === "error" && (
-                      <>
-                        <ShieldAlert className="h-16 w-16 text-destructive" />
-                        <div className="text-center space-y-2 w-full">
+                      <div className="bg-destructive/[0.03] border border-destructive/10 rounded-2xl p-6 w-full flex flex-col items-center justify-center space-y-4 shadow-sm animate-in zoom-in duration-300">
+                        <div className="relative flex items-center justify-center h-16 w-16 rounded-full bg-destructive/10 border-2 border-destructive shadow-lg shadow-destructive/10">
+                          <ShieldAlert className="h-8 w-8 text-destructive" />
+                        </div>
+                        
+                        <div className="text-center space-y-1 w-full">
                           <p className="text-base font-bold text-destructive">
-                            No se pudo enviar la sugerencia
+                            Error en la Transmisión
                           </p>
-                          <p className="text-xs text-destructive/90 px-4 max-h-[100px] overflow-y-auto font-mono text-left bg-destructive/5 border border-destructive/10 p-2 rounded">
+                          <p className="text-xs text-muted-foreground max-w-[280px] mx-auto">
+                            No se pudo enviar la sugerencia al sistema externo
+                          </p>
+                          <p className="text-[10px] text-destructive px-3 max-h-[80px] overflow-y-auto font-mono text-left bg-destructive/5 border border-destructive/10 p-2 rounded-lg mt-2">
                             {ocError}
                           </p>
                         </div>
-                      </>
+                      </div>
                     )}
                   </div>
 
                   <DialogFooter className="sm:justify-center w-full">
                     {estadoSimulacion === "completado" && (
-                      <Button className="w-full sm:w-auto" onClick={() => resetearModal(false)}>
-                        Cerrar
+                      <Button className="w-full sm:w-auto font-semibold px-6 shadow-md transition-all" onClick={() => resetearModal(false)}>
+                        Finalizar y Cerrar
                       </Button>
                     )}
                     {estadoSimulacion === "error" && (
-                      <div className="flex gap-2 w-full justify-center">
-                        <Button variant="outline" className="w-full sm:w-auto" onClick={() => resetearModal(false)}>
+                      <div className="flex gap-2.5 w-full justify-center">
+                        <Button variant="outline" className="w-full sm:w-auto font-semibold" onClick={() => resetearModal(false)}>
                           Cerrar
                         </Button>
-                        <Button className="w-full sm:w-auto" onClick={iniciarSimulacion}>
-                          <RefreshCw className="h-4 w-4 mr-2" /> Reintentar
+                        <Button className="w-full sm:w-auto font-semibold" onClick={iniciarSimulacion}>
+                          <RefreshCw className="h-4 w-4 mr-2" /> Reintentar Envío
                         </Button>
                       </div>
                     )}

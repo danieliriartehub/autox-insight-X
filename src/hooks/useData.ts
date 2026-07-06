@@ -59,6 +59,7 @@ export interface TopRepuesto {
   riesgo: "Bajo" | "Medio" | "Alto";
   stockActual: number;
   stockMinimo: number;
+  rawCodigo?: string;
 }
 
 // ── helpers internos ──────────────────────────────────────────────────────────
@@ -502,18 +503,19 @@ export function useTopRepuestos() {
     const stockMap: Record<string, { stock: number; min: number }> = {};
     for (const s of stockData) {
       if (s.c_repuesto) {
-        stockMap[s.c_repuesto] = {
+        stockMap[s.c_repuesto.trim()] = {
           stock: Number(s.stock) || 0,
           min: Number(s.stock_minimo) || 0,
         };
       }
     }
 
-    const byCode: Record<string, { desc: string; total: number }> = {};
+    const byCode: Record<string, { desc: string; total: number; rawCodigo: string }> = {};
     for (const row of data) {
-      const code = String(row.producto_id ?? "").trim();
+      const raw = String(row.producto_id ?? "");
+      const code = raw.trim();
       if (!code) continue;
-      if (!byCode[code]) byCode[code] = { desc: String(row.descripcion ?? code), total: 0 };
+      if (!byCode[code]) byCode[code] = { desc: String(row.descripcion ?? code), total: 0, rawCodigo: raw };
       byCode[code].total += Number(row.cantidad) || 0;
     }
 
@@ -530,6 +532,7 @@ export function useTopRepuestos() {
           riesgo: v.total < 10 ? "Alto" : v.total < 50 ? "Medio" : "Bajo",
           stockActual: s.stock,
           stockMinimo: s.min,
+          rawCodigo: v.rawCodigo,
         };
       }) as TopRepuesto[];
   });
