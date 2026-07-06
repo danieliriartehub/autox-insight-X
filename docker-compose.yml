@@ -87,6 +87,7 @@ services:
 
 networks:
   autox-network:
+    name: autox-network
     driver: bridge
 
 volumes:
