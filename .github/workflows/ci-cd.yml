@@ -37,7 +37,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -124,7 +124,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4
@@ -148,7 +148,7 @@ jobs:
           python-version: ${{ env.PYTHON_VERSION }}
 
       - name: Checkout Backend for Audit
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: jacquiets/autox-insight-backend
           path: backend
@@ -242,13 +242,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Frontend
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Checkout Backend for Integration Tests
         # ── RAZÓN: El repo del backend es privado. Si no hay token con acceso,
         #    fallará. continue-on-error evita que bloquee el resto del pipeline. ──
         continue-on-error: true
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: jacquiets/autox-insight-backend
           path: backend
@@ -424,7 +424,7 @@ jobs:
     environment: production
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Node
         uses: actions/setup-node@v4
