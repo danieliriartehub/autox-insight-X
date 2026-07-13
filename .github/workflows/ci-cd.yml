@@ -272,7 +272,7 @@ jobs:
 
       - name: Container Vulnerability Scan (Grype)
         # output-format sarif → results saved as 'results.sarif' by default
-        uses: anchore/scan-action@v3
+        uses: anchore/scan-action@v7
         with:
           image: autox-frontend:ci
           fail-build: false
